@@ -4,11 +4,7 @@ from enum import Enum
 import pandas as pd
 import logging as log
 
-COL_CHECK = 'CHECK'
-COL_ID = 'Q01_ID-1'
-COL_MATRICOLA = 'Q02_Matricola'
-COL_TO_DROP = ['Response', 'Submitted on:', 'Study Plan', 'Degree Code', 'Course', 'Group', 'ID', 'Full name',
-               'Username']
+import conf
 
 log.basicConfig(level=log.INFO)
 
@@ -28,10 +24,10 @@ def read_files(pp, *files):
     log.info(f"{pp.name}: Read shape {df.shape}")
 
     # Removing unuseful columns
-    df.drop(COL_TO_DROP, axis=1, inplace=True)
+    df.drop(conf.COL_TO_DROP, axis=1, inplace=True)
 
     # Identifying the CHECK columns
-    check_columns = [col for col in df.columns if COL_CHECK in col]
+    check_columns = [col for col in df.columns if conf.COL_CHECK in col]
     log.debug(f"{pp.name}: CHECK columns {check_columns}")
 
     # Removing rows where people did not answer 4 in all the CHECK columns
@@ -41,27 +37,43 @@ def read_files(pp, *files):
     df.drop(check_columns, axis=1, inplace=True)
     log.info(f"{pp.name}: Passed CHECK shape {df.shape}")
 
+    # Inverting the columns that need inversion
+    log.info(f"Inverting columns {conf.COL_TO_INVERT}")
+    invert_columns = [col for col in df.columns if column_is_to_be_inverted(col)]
+    log.debug(f"Inverting columns {invert_columns}")
+    for index, row in df.iterrows():
+        for col in invert_columns:
+            df.at[index, col] = conf.MAX_POINTS - int(row[col])
+
     # log.info(f.head())
     # Removing invalid Matricola
-    df[COL_MATRICOLA] = df[COL_MATRICOLA].map(lambda x: str(x))
-    df[COL_MATRICOLA] = df[COL_MATRICOLA].map(lambda x: x.replace('.0', ''))
-    df[COL_MATRICOLA] = df[COL_MATRICOLA].map(lambda x: x if x.isnumeric() else '')
-    df[COL_MATRICOLA] = df[COL_MATRICOLA].map(lambda x: '' if x != '' and int(x) < 1000000 else x)
-    df[COL_MATRICOLA] = df[COL_MATRICOLA].map(lambda x: '' if x != '' and int(x) > 3000000 else x)
+    df[conf.COL_MATRICOLA] = df[conf.COL_MATRICOLA].map(lambda x: str(x))
+    df[conf.COL_MATRICOLA] = df[conf.COL_MATRICOLA].map(lambda x: x.replace('.0', ''))
+    df[conf.COL_MATRICOLA] = df[conf.COL_MATRICOLA].map(lambda x: x if x.isnumeric() else '')
+    df[conf.COL_MATRICOLA] = df[conf.COL_MATRICOLA].map(lambda x: '' if x != '' and int(x) < 1000000 else x)
+    df[conf.COL_MATRICOLA] = df[conf.COL_MATRICOLA].map(lambda x: '' if x != '' and int(x) > 3000000 else x)
 
     # all ID should be upper case
     for index, row in df.iterrows():
-        df.at[index, COL_ID] = row[COL_ID].upper()
+        df.at[index, conf.COL_ID] = row[conf.COL_ID].upper()
 
     log.debug(f"{df.dtypes}")
     return df
 
 
+def column_is_to_be_inverted(col):
+    """This methods returns True if the name of column col is in the list of the columns
+     that need to be inverted."""
+    for column_name in conf.COL_TO_INVERT:
+        if column_name in col:
+            return True
+
+
 def populate_matricola_from_id(df):
     """This method populates the empty Matricola with the ID of that row."""
     for index, row in df.iterrows():
-        if row[COL_MATRICOLA] == '':
-            df.at[index, COL_MATRICOLA] = row[COL_ID]
+        if row[conf.COL_MATRICOLA] == '':
+            df.at[index, conf.COL_MATRICOLA] = row[conf.COL_ID]
 
 
 def restore_matricola(sx, dx):
@@ -69,21 +81,21 @@ def restore_matricola(sx, dx):
     with the same ID."""
     log.debug(f"Restoring Matricola")
     # for each Matricola in sx
-    for index, sx_matricola in sx[COL_MATRICOLA].items():
+    for index, sx_matricola in sx[conf.COL_MATRICOLA].items():
         # if the Matricola is missing
-        if sx_matricola == '' or sx_matricola is None:
+        if sx_matricola == '':
             log.debug(f"Matricola not found at index {index}, trying to restore it")
             # The ID for this Matricola
-            sx_id = sx.at[index, COL_ID]
+            sx_id = sx.at[index, conf.COL_ID]
             log.debug(f" Matricola at index {index} has ID {sx_id}")
             if sx_id is not None and sx_id != '':
-                dx_row = dx.loc[dx[COL_ID] == sx_id]
+                dx_row = dx.loc[dx[conf.COL_ID] == sx_id]
                 if not dx_row.empty:
                     log.debug(f" DX has ID {sx_id} at row {dx_row.index}")
-                    dx_matricola = dx_row.iloc[0].at[COL_MATRICOLA]
+                    dx_matricola = dx_row.iloc[0].at[conf.COL_MATRICOLA]
                     if dx_matricola is not None and dx_matricola != '':
                         log.debug(f" ID {sx_id} has Matricola {dx_matricola}")
-                        sx.at[index, COL_MATRICOLA] = dx_matricola
+                        sx.at[index, conf.COL_MATRICOLA] = dx_matricola
 
 
 if __name__ == "__main__":
@@ -101,8 +113,8 @@ if __name__ == "__main__":
     populate_matricola_from_id(post)
 
     log.info(f"Joining...")
-    log.debug(f"{pre[COL_MATRICOLA]}")
-    log.debug(f"{post[COL_MATRICOLA]}")
-    join = pd.merge(pre, post, on=COL_MATRICOLA, suffixes=("_pre", "_post"))
+    log.debug(f"{pre[conf.COL_MATRICOLA]}")
+    log.debug(f"{post[conf.COL_MATRICOLA]}")
+    join = pd.merge(pre, post, on=conf.COL_MATRICOLA, suffixes=("_pre", "_post"))
     log.info(f"Joined: got {join.shape}")
     log.debug(join.head())
