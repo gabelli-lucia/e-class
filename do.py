@@ -106,7 +106,36 @@ def restore_matricola(sx, dx):
                         sx.at[index, conf.COL_MATRICOLA] = dx_matricola
 
 
+def column_is_to_be_mapped(column_name, veto):
+    """Says whether this column values should be remapped.
+    >>> column_is_to_be_mapped('Q06_3', ['Q01'])
+    True
+    >>> column_is_to_be_mapped('Q01_ID-1', ['Q01'])
+    False
+    >>> column_is_to_be_mapped('Titolo', ['Q01'])
+    False
+    """
+    if not column_name.startswith('Q'):
+        return False
+    for c in veto:
+        if column_name.startswith(c):
+            return False
+    return True
+
+
+def clone_and_map(df, mapping, veto):
+    copy = df.copy()
+    for c in copy.columns:
+        if column_is_to_be_mapped(c, veto):
+            # all ID should be upper case
+            for index, row in df.iterrows():
+                df.at[index, c] = mapping[int(row[c]) - 1]
+
+
 if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
+
     filenames = sys.argv[1:]
     log.info(f"Reading {filenames}")
     pre = read_files(PrePost.PRE, *filenames)
@@ -139,3 +168,7 @@ if __name__ == "__main__":
     join.to_excel(f"join.xlsx")
 
     # TODO Bisogna fare due varianti, che mappano 1-5 su 0-1 e su 0-2
+    pre2 = clone_and_map(pre, conf.MAPPING2, conf.COL_DONT_MAP_PRE)
+    pre3 = clone_and_map(pre, conf.MAPPING3, conf.COL_DONT_MAP_PRE)
+    post2 = clone_and_map(pre, conf.MAPPING2, conf.COL_DONT_MAP_POST)
+    post3 = clone_and_map(pre, conf.MAPPING3, conf.COL_DONT_MAP_POST)
