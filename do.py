@@ -1,6 +1,8 @@
 import sys
 from enum import Enum
+from math import sqrt
 
+import numpy as np
 import pandas as pd
 import logging as log
 
@@ -125,11 +127,10 @@ def column_is_to_be_mapped(column_name, veto):
 
 def clone_and_map(df, mapping, veto):
     copy = df.copy()
-    for c in copy.columns:
-        if column_is_to_be_mapped(c, veto):
-            # all ID should be upper case
-            for index, row in copy.iterrows():
-                copy.at[index, c] = mapping[int(row[c]) - 1]
+    for c in [c for c in copy.columns if column_is_to_be_mapped(c, veto)]:
+        # all ID should be upper case
+        for index, row in copy.iterrows():
+            copy.at[index, c] = mapping[int(row[c]) - 1]
     return copy
 
 
@@ -143,6 +144,35 @@ def join_by_matricola(sx, dx):
     log.info(f"Joined: got {result.shape}")
     log.debug(result.head())
     return result
+
+
+def mean_and_sigma_of_columns_by_name(df, sub_column_name):
+    """This method returns the sigmas of all the values of the column that have
+     sub_column_name in the name."""
+    s = pd.concat([df[col] for col in df.columns if sub_column_name in col])
+    return s.mean(), s.std()
+
+
+def save_means_chart(pre, post, filename):
+    mean_pre_tu, sigma_pre_tu = mean_and_sigma_of_columns_by_name(pre, conf.COL_TU)
+    mean_pre_exp, sigma_pre_exp = mean_and_sigma_of_columns_by_name(pre, conf.COL_EXP)
+    mean_post_tu, sigma_post_tu = mean_and_sigma_of_columns_by_name(post, conf.COL_TU)
+    mean_post_exp, sigma_post_exp = mean_and_sigma_of_columns_by_name(post, conf.COL_EXP)
+    means_pre = [mean_pre_tu, mean_pre_exp]
+    means_post = [mean_post_tu, mean_post_exp]
+    log.info(f"Averages pre: {means_pre}")
+    log.info(f"Averages post: {means_post}")
+
+    sigma_pre = [sigma_pre_tu, sigma_pre_exp]
+    sigma_post = [sigma_post_tu, sigma_post_exp]
+    log.info(f"Sigmas pre: {sigma_pre}")
+    log.info(f"Sigmas post: {sigma_post}")
+
+    means = pd.DataFrame({'': ['Pre', 'Post'], 'YOU': means_pre, 'Expert': means_post})
+    err = pd.DataFrame({'': ['Pre', 'Post'], 'YOU': sigma_pre, 'Expert': sigma_post})
+    ax = means.plot.bar(y=['YOU', 'Expert'], rot=0, yerr=err)
+    fig = ax.get_figure()
+    fig.savefig(filename, dpi=200)
 
 
 if __name__ == "__main__":
@@ -187,3 +217,4 @@ if __name__ == "__main__":
     join3 = join_by_matricola(pre3, post3)
     join3.to_excel(f"join3.xlsx")
 
+    save_means_chart(pre, post, 'chart_means.png')
