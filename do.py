@@ -132,8 +132,21 @@ def clone_and_map(df, mapping, veto):
                 df.at[index, c] = mapping[int(row[c]) - 1]
 
 
+def join_by_matricola(sx, dx):
+    """This methods joins two DataFrames by the conf.COL_MATRICOLA column."""
+    # Joining the two tables
+    log.info(f"Joining...")
+    log.debug(f"{sx[conf.COL_MATRICOLA]}")
+    log.debug(f"{dx[conf.COL_MATRICOLA]}")
+    result = pd.merge(sx, dx, on=conf.COL_MATRICOLA, suffixes=("_pre", "_post"))
+    log.info(f"Joined: got {result.shape}")
+    log.debug(result.head())
+    return result
+
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
 
     filenames = sys.argv[1:]
@@ -155,20 +168,14 @@ if __name__ == "__main__":
     pre.drop([conf.COL_ID], axis=1, inplace=True)
     post.drop([conf.COL_ID], axis=1, inplace=True)
 
-    # Joining the two tables
-    log.info(f"Joining...")
-    log.debug(f"{pre[conf.COL_MATRICOLA]}")
-    log.debug(f"{post[conf.COL_MATRICOLA]}")
-    join = pd.merge(pre, post, on=conf.COL_MATRICOLA, suffixes=("_pre", "_post"))
-    log.info(f"Joined: got {join.shape}")
-    log.debug(join.head())
-
-    pre.to_excel(f"pre.xlsx")
-    post.to_excel(f"post.xlsx")
-    join.to_excel(f"join.xlsx")
-
     # TODO Bisogna fare due varianti, che mappano 1-5 su 0-1 e su 0-2
     pre2 = clone_and_map(pre, conf.MAPPING2, conf.COL_DONT_MAP_PRE)
     pre3 = clone_and_map(pre, conf.MAPPING3, conf.COL_DONT_MAP_PRE)
     post2 = clone_and_map(pre, conf.MAPPING2, conf.COL_DONT_MAP_POST)
     post3 = clone_and_map(pre, conf.MAPPING3, conf.COL_DONT_MAP_POST)
+
+    join = join_by_matricola(pre, post)
+
+    pre.to_excel(f"pre.xlsx")
+    post.to_excel(f"post.xlsx")
+    join.to_excel(f"join.xlsx")
