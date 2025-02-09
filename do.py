@@ -193,7 +193,7 @@ if __name__ == "__main__":
     populate_matricola_from_id(pre)
     populate_matricola_from_id(post)
 
-    # TODO se ci son duplicati, bisogna tranquillamente ignorare quelli che dall'altra parte non ci sono
+    # TODO se ci sono duplicati, bisogna tranquillamente ignorare quelli che dall'altra parte non ci sono
 
     # Now, IDs are no more needed
     pre.drop([conf.COL_ID], axis=1, inplace=True)
@@ -202,19 +202,19 @@ if __name__ == "__main__":
     post.to_excel(f"post.xlsx")
 
     pre2 = clone_and_map(pre, conf.MAPPING2, conf.COL_DONT_MAP_PRE)
-    pre2.to_excel(f"pre2.xlsx")
     pre3 = clone_and_map(pre, conf.MAPPING3, conf.COL_DONT_MAP_PRE)
-    pre3.to_excel(f"pre3.xlsx")
     post2 = clone_and_map(post, conf.MAPPING2, conf.COL_DONT_MAP_POST)
-    post2.to_excel(f"post2.xlsx")
     post3 = clone_and_map(post, conf.MAPPING3, conf.COL_DONT_MAP_POST)
+    pre2.to_excel(f"pre2.xlsx")
+    pre3.to_excel(f"pre3.xlsx")
+    post2.to_excel(f"post2.xlsx")
     post3.to_excel(f"post3.xlsx")
 
     join = join_by_matricola(pre, post)
-    join.to_excel(f"join.xlsx")
     join2 = join_by_matricola(pre2, post2)
-    join2.to_excel(f"join2.xlsx")
     join3 = join_by_matricola(pre3, post3)
+    join.to_excel(f"join.xlsx")
+    join2.to_excel(f"join2.xlsx")
     join3.to_excel(f"join3.xlsx")
 
     save_means_chart(pre, post, 'chart_means.png')
