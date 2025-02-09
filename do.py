@@ -128,8 +128,9 @@ def clone_and_map(df, mapping, veto):
     for c in copy.columns:
         if column_is_to_be_mapped(c, veto):
             # all ID should be upper case
-            for index, row in df.iterrows():
-                df.at[index, c] = mapping[int(row[c]) - 1]
+            for index, row in copy.iterrows():
+                copy.at[index, c] = mapping[int(row[c]) - 1]
+    return copy
 
 
 def join_by_matricola(sx, dx):
@@ -167,15 +168,22 @@ if __name__ == "__main__":
     # Now, IDs are no more needed
     pre.drop([conf.COL_ID], axis=1, inplace=True)
     post.drop([conf.COL_ID], axis=1, inplace=True)
-
-    # TODO Bisogna fare due varianti, che mappano 1-5 su 0-1 e su 0-2
-    pre2 = clone_and_map(pre, conf.MAPPING2, conf.COL_DONT_MAP_PRE)
-    pre3 = clone_and_map(pre, conf.MAPPING3, conf.COL_DONT_MAP_PRE)
-    post2 = clone_and_map(pre, conf.MAPPING2, conf.COL_DONT_MAP_POST)
-    post3 = clone_and_map(pre, conf.MAPPING3, conf.COL_DONT_MAP_POST)
-
-    join = join_by_matricola(pre, post)
-
     pre.to_excel(f"pre.xlsx")
     post.to_excel(f"post.xlsx")
+
+    pre2 = clone_and_map(pre, conf.MAPPING2, conf.COL_DONT_MAP_PRE)
+    pre2.to_excel(f"pre2.xlsx")
+    pre3 = clone_and_map(pre, conf.MAPPING3, conf.COL_DONT_MAP_PRE)
+    pre3.to_excel(f"pre3.xlsx")
+    post2 = clone_and_map(post, conf.MAPPING2, conf.COL_DONT_MAP_POST)
+    post2.to_excel(f"post2.xlsx")
+    post3 = clone_and_map(post, conf.MAPPING3, conf.COL_DONT_MAP_POST)
+    post3.to_excel(f"post3.xlsx")
+
+    join = join_by_matricola(pre, post)
     join.to_excel(f"join.xlsx")
+    join2 = join_by_matricola(pre2, post2)
+    join2.to_excel(f"join2.xlsx")
+    join3 = join_by_matricola(pre3, post3)
+    join3.to_excel(f"join3.xlsx")
+
