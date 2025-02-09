@@ -37,6 +37,18 @@ def read_files(pp, *files):
     df.drop(check_columns, axis=1, inplace=True)
     log.info(f"{pp.name}: Passed CHECK shape {df.shape}")
 
+    # all ID should be upper case
+    for index, row in df.iterrows():
+        df.at[index, conf.COL_ID] = row[conf.COL_ID].upper()
+
+    # We reject the file if there are duplicate IDs.
+    dup = df.duplicated(subset=[conf.COL_ID])
+    ids = df[conf.COL_ID]
+    if True in dup.unique():
+        log.error(
+            f"{pp.name}: Duplicate IDs: {df[ids.isin(ids[ids.duplicated()])].sort_values(conf.COL_ID)[conf.COL_ID].unique()}")
+        # exit(1)
+
     # Inverting the columns that need inversion
     log.info(f"Inverting columns {conf.COL_TO_INVERT}")
     invert_columns = [col for col in df.columns if column_is_to_be_inverted(col)]
@@ -52,10 +64,6 @@ def read_files(pp, *files):
     df[conf.COL_MATRICOLA] = df[conf.COL_MATRICOLA].map(lambda x: x if x.isnumeric() else '')
     df[conf.COL_MATRICOLA] = df[conf.COL_MATRICOLA].map(lambda x: '' if x != '' and int(x) < 1000000 else x)
     df[conf.COL_MATRICOLA] = df[conf.COL_MATRICOLA].map(lambda x: '' if x != '' and int(x) > 3000000 else x)
-
-    # all ID should be upper case
-    for index, row in df.iterrows():
-        df.at[index, conf.COL_ID] = row[conf.COL_ID].upper()
 
     log.debug(f"{df.dtypes}")
     return df
@@ -112,6 +120,13 @@ if __name__ == "__main__":
     populate_matricola_from_id(pre)
     populate_matricola_from_id(post)
 
+    # TODO se ci son duplicati, bisogna tranquillamente ignorare quelli che dall'altra parte non ci sono
+
+    # Now, IDs are no more needed
+    pre.drop([conf.COL_ID], axis=1, inplace=True)
+    post.drop([conf.COL_ID], axis=1, inplace=True)
+
+    # Joining the two tables
     log.info(f"Joining...")
     log.debug(f"{pre[conf.COL_MATRICOLA]}")
     log.debug(f"{post[conf.COL_MATRICOLA]}")
