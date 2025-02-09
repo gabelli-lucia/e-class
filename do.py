@@ -133,3 +133,9 @@ if __name__ == "__main__":
     join = pd.merge(pre, post, on=conf.COL_MATRICOLA, suffixes=("_pre", "_post"))
     log.info(f"Joined: got {join.shape}")
     log.debug(join.head())
+
+    pre.to_excel(f"pre.xlsx")
+    post.to_excel(f"post.xlsx")
+    join.to_excel(f"join.xlsx")
+
+    # TODO Bisogna fare due varianti, che mappano 1-5 su 0-1 e su 0-2
