@@ -4,6 +4,7 @@ from scipy.stats import mannwhitneyu
 
 import pandas as pd
 import logging as log
+import numpy as np
 
 import conf
 # This is needed to export XLSX files. I do not know why pandas does not import it by itself.
@@ -152,14 +153,17 @@ def mean_and_sigma_of_columns_by_name(df, sub_column_name):
     """This method returns the sigmas of all the values of the column that have
      sub_column_name in the name."""
     s = pd.concat([df[col] for col in df.columns if sub_column_name in col])
-    return s.mean(), s.std()
+
+    err = 1.96 * (s.std() / np.sqrt(s.count()))
+
+    return s.mean(), s.std(), err
 
 
 def chart_means(pre, post, filename):
-    mean_pre_tu, sigma_pre_tu = mean_and_sigma_of_columns_by_name(pre, conf.COL_TU)
-    mean_pre_exp, sigma_pre_exp = mean_and_sigma_of_columns_by_name(pre, conf.COL_EXP)
-    mean_post_tu, sigma_post_tu = mean_and_sigma_of_columns_by_name(post, conf.COL_TU)
-    mean_post_exp, sigma_post_exp = mean_and_sigma_of_columns_by_name(post, conf.COL_EXP)
+    mean_pre_tu, sigma_pre_tu, err_pre_tu = mean_and_sigma_of_columns_by_name(pre, conf.COL_TU)
+    mean_pre_exp, sigma_pre_exp, err_pre_exp = mean_and_sigma_of_columns_by_name(pre, conf.COL_EXP)
+    mean_post_tu, sigma_post_tu, err_post_tu = mean_and_sigma_of_columns_by_name(post, conf.COL_TU)
+    mean_post_exp, sigma_post_exp, err_post_exp = mean_and_sigma_of_columns_by_name(post, conf.COL_EXP)
     means_pre = [mean_pre_tu, mean_pre_exp]
     means_post = [mean_post_tu, mean_post_exp]
     log.info(f"Averages pre: {means_pre}")
@@ -170,8 +174,14 @@ def chart_means(pre, post, filename):
     log.info(f"Sigmas pre: {sigma_pre}")
     log.info(f"Sigmas post: {sigma_post}")
 
+    err_pre = [err_pre_tu, err_pre_exp]
+    err_post = [err_post_tu, err_post_exp]
+    log.info(f"Err 95% pre: {err_pre}")
+    log.info(f"Err 95% post: {err_post}")
+
     means = pd.DataFrame({'': ['Pre', 'Post'], 'YOU': means_pre, 'Expert': means_post})
-    err = pd.DataFrame({'': ['Pre', 'Post'], 'YOU': sigma_pre, 'Expert': sigma_post})
+    # err = pd.DataFrame({'': ['Pre', 'Post'], 'YOU': sigma_pre, 'Expert': sigma_post})
+    err = pd.DataFrame({'': ['Pre', 'Post'], 'YOU': err_pre, 'Expert': err_post})
     ax = means.plot.bar(y=['YOU', 'Expert'], rot=0, yerr=err)
     fig = ax.get_figure()
     fig.savefig(filename, dpi=200)
