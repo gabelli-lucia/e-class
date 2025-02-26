@@ -3,35 +3,56 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
-        <entry key="/ECLASS_Eng_PRE_2S_.csv">
+        <entry key="/ECLASS_Ita_POST_FIS2a.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="/ECLASS_Ita_POST_2S_.csv">
+        <entry key="/ECLASS_Ita_PRE_FIS2a.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="/ECLASS_Ita_PRE_2S_.csv">
+        <entry key="/esempi/ECLASS_Eng_POST_2S_.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="/POST.csv">
+        <entry key="/esempi/ECLASS_Eng_PRE_2S_.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="/PRE.csv">
+        <entry key="/esempi/ECLASS_Ita_POST_2S_.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/esempi/ECLASS_Ita_PRE_2S_.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/esempi/POST.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/esempi/PRE.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

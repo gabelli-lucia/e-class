@@ -1,12 +1,14 @@
 import sys
 from enum import Enum
-from math import sqrt
+from scipy.stats import mannwhitneyu
 
-import numpy as np
 import pandas as pd
 import logging as log
 
 import conf
+# This is needed to export XLSX files. I do not know why pandas does not import it by itself.
+import openpyxl
+import matplotlib
 
 log.basicConfig(level=log.INFO)
 
@@ -153,7 +155,7 @@ def mean_and_sigma_of_columns_by_name(df, sub_column_name):
     return s.mean(), s.std()
 
 
-def save_means_chart(pre, post, filename):
+def chart_means(pre, post, filename):
     mean_pre_tu, sigma_pre_tu = mean_and_sigma_of_columns_by_name(pre, conf.COL_TU)
     mean_pre_exp, sigma_pre_exp = mean_and_sigma_of_columns_by_name(pre, conf.COL_EXP)
     mean_post_tu, sigma_post_tu = mean_and_sigma_of_columns_by_name(post, conf.COL_TU)
@@ -171,6 +173,18 @@ def save_means_chart(pre, post, filename):
     means = pd.DataFrame({'': ['Pre', 'Post'], 'YOU': means_pre, 'Expert': means_post})
     err = pd.DataFrame({'': ['Pre', 'Post'], 'YOU': sigma_pre, 'Expert': sigma_post})
     ax = means.plot.bar(y=['YOU', 'Expert'], rot=0, yerr=err)
+    fig = ax.get_figure()
+    fig.savefig(filename, dpi=200)
+
+
+def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
+    columns = [c for c in pre2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST) and substring in c]
+    pre2_means = {col_name: pre2[col_name].mean() for col_name in columns}
+    post2_means = {col_name: post2[col_name].mean() for col_name in columns}
+    effect = {col_name: mannwhitneyu(pre[col_name], post[col_name]).pvalue for col_name in columns}
+
+    df2 = pd.DataFrame(data={'Pre': pre2_means, 'Post': post2_means, 'Effect': effect}).sort_values(by=['Pre'])
+    ax = df2.plot(secondary_y='Effect')
     fig = ax.get_figure()
     fig.savefig(filename, dpi=200)
 
@@ -217,4 +231,5 @@ if __name__ == "__main__":
     join2.to_excel(f"join2.xlsx")
     join3.to_excel(f"join3.xlsx")
 
-    save_means_chart(pre, post, 'chart_means.png')
+    chart_means(pre2, post2, 'chart_means.png')
+    chart_what_do_you_think(pre, post, pre3, post3, conf.COL_TU, 'chart_what_do_you_think.png')
