@@ -164,25 +164,22 @@ def chart_means(pre, post, filename):
     mean_pre_exp, sigma_pre_exp, err_pre_exp = mean_and_sigma_of_columns_by_name(pre, conf.COL_EXP)
     mean_post_tu, sigma_post_tu, err_post_tu = mean_and_sigma_of_columns_by_name(post, conf.COL_TU)
     mean_post_exp, sigma_post_exp, err_post_exp = mean_and_sigma_of_columns_by_name(post, conf.COL_EXP)
-    means_pre = [mean_pre_tu, mean_pre_exp]
-    means_post = [mean_post_tu, mean_post_exp]
-    log.info(f"Averages pre: {means_pre}")
-    log.info(f"Averages post: {means_post}")
 
-    sigma_pre = [sigma_pre_tu, sigma_pre_exp]
-    sigma_post = [sigma_post_tu, sigma_post_exp]
-    log.info(f"Sigmas pre: {sigma_pre}")
-    log.info(f"Sigmas post: {sigma_post}")
+    log.info(f"Averages pre:  TU: {mean_pre_tu}, EXP: {mean_pre_exp}")
+    log.info(f"Averages post: TU: {mean_post_tu}, EXP: {mean_post_exp}")
 
-    err_pre = [err_pre_tu, err_pre_exp]
-    err_post = [err_post_tu, err_post_exp]
-    log.info(f"Err 95% pre: {err_pre}")
-    log.info(f"Err 95% post: {err_post}")
+    log.info(f"Sigmas pre:    TU: {sigma_pre_tu}, EXP: {sigma_pre_exp}")
+    log.info(f"Sigmas post:   TU: {sigma_post_tu}, EXP: {sigma_post_exp}")
 
-    means = pd.DataFrame({'': ['Pre', 'Post'], 'YOU': means_pre, 'Expert': means_post})
-    # err = pd.DataFrame({'': ['Pre', 'Post'], 'YOU': sigma_pre, 'Expert': sigma_post})
-    err = pd.DataFrame({'': ['Pre', 'Post'], 'YOU': err_pre, 'Expert': err_post})
-    ax = means.plot.bar(y=['YOU', 'Expert'], rot=0, yerr=err)
+    log.info(f"Err 95% pre:   TU: {err_pre_tu}, EXP: {err_pre_exp}")
+    log.info(f"Err 95% post:  TU: {err_post_tu}, EXP: {err_post_exp}")
+
+    means = pd.DataFrame(
+        {'pre/post': ['Pre', 'Post'], 'YOU': [mean_pre_tu, mean_post_tu], 'Expert': [mean_pre_exp, mean_post_exp]})
+    # err = pd.DataFrame(
+    #     {'pre/post': ['Pre', 'Post'], 'YOU': [sigma_pre_tu, sigma_post_tu], 'Expert': [sigma_pre_exp, sigma_post_exp]})
+    err = [[err_pre_tu, err_post_tu], [err_pre_exp, err_post_exp]]
+    ax = means.plot.bar(x='pre/post', y=['YOU', 'Expert'], rot=0, capsize=4, yerr=err)
     fig = ax.get_figure()
     fig.savefig(filename, dpi=200)
 
@@ -191,12 +188,21 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
     columns = [c for c in pre2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST) and substring in c]
     pre2_means = {col_name: pre2[col_name].mean() for col_name in columns}
     post2_means = {col_name: post2[col_name].mean() for col_name in columns}
-    effect = {col_name: mannwhitneyu(pre[col_name], post[col_name]).pvalue for col_name in columns}
+    effect = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
 
-    df2 = pd.DataFrame(data={'Pre': pre2_means, 'Post': post2_means, 'Effect': effect}).sort_values(by=['Pre'])
+    df2 = (pd.DataFrame(data={'Pre': pre2_means, 'Post': post2_means, 'Effect': effect})
+           .sort_values(by=['Pre']))
     ax = df2.plot(secondary_y='Effect')
     fig = ax.get_figure()
     fig.savefig(filename, dpi=200)
+
+
+def dump_averages(df):
+    columns = [c for c in df.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_PRE)]
+
+    pre2_means = {col_name: df[col_name].mean() for col_name in columns}
+    for col_name in columns:
+        print(f"{col_name}: {pre2_means[col_name]}")
 
 
 if __name__ == "__main__":
@@ -233,6 +239,9 @@ if __name__ == "__main__":
     pre3.to_excel(f"pre3.xlsx")
     post2.to_excel(f"post2.xlsx")
     post3.to_excel(f"post3.xlsx")
+
+    print("MEDIE di pre2")
+    dump_averages(pre2)
 
     join = join_by_matricola(pre, post)
     join2 = join_by_matricola(pre2, post2)
