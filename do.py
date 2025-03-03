@@ -1,6 +1,10 @@
 import sys
 from enum import Enum
-from scipy.stats import mannwhitneyu
+from math import sqrt
+from statistics import mean, stdev
+
+from scipy.linalg import sqrtm
+from scipy.stats import mannwhitneyu, ttest_ind
 
 import pandas as pd
 import logging as log
@@ -184,15 +188,34 @@ def chart_means(pre, post, filename):
     fig.savefig(filename, dpi=200)
 
 
+def cohensd(c0, c1):
+    cohens_d = (mean(c0) - mean(c1)) / (sqrt((stdev(c0) ** 2 + stdev(c1) ** 2) / 2))
+    return cohens_d
+
+
 def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
     columns = [c for c in pre2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST) and substring in c]
     pre2_means = {col_name: pre2[col_name].mean() for col_name in columns}
     post2_means = {col_name: post2[col_name].mean() for col_name in columns}
     effect = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
+    print("Effect")
+    print(effect)
+    cohen = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
+    print("Cohens")
+    print(cohen)
 
-    df2 = (pd.DataFrame(data={'Pre': pre2_means, 'Post': post2_means, 'Effect': effect})
+    # Bisogna azzerare cohen per le colonne che hanno effect > 0.05 (o 0.001)
+    for col_name in columns:
+        if effect[col_name] > 0.05:
+            cohen[col_name] = 0.0
+
+    df2 = (pd.DataFrame(data={
+        'Pre': pre2_means,
+        'Post': post2_means,
+        # 'Effect': effect,
+        'Cohen': cohen})
            .sort_values(by=['Pre']))
-    ax = df2.plot(secondary_y='Effect')
+    ax = df2.plot(secondary_y='Cohen')
     fig = ax.get_figure()
     fig.savefig(filename, dpi=200)
 
