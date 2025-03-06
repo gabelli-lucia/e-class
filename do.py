@@ -1,10 +1,10 @@
+import re
 import sys
 from enum import Enum
 from math import sqrt
 from statistics import mean, stdev
 
-from scipy.linalg import sqrtm
-from scipy.stats import mannwhitneyu, ttest_ind
+from scipy.stats import mannwhitneyu
 
 import pandas as pd
 import logging as log
@@ -183,7 +183,7 @@ def chart_means(pre, post, filename):
     # err = pd.DataFrame(
     #     {'pre/post': ['Pre', 'Post'], 'YOU': [sigma_pre_tu, sigma_post_tu], 'Expert': [sigma_pre_exp, sigma_post_exp]})
     err = [[err_pre_tu, err_post_tu], [err_pre_exp, err_post_exp]]
-    ax = means.plot.bar(x='pre/post', y=['YOU', 'Expert'], rot=0, capsize=4, yerr=err)
+    ax = means.plot.bar(x='pre/post', y=['YOU', 'Expert'], rot=0, capsize=4, yerr=err, color=['green', 'red'])
     fig = ax.get_figure()
     fig.savefig(filename, dpi=200)
 
@@ -201,6 +201,7 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
     print("Effect")
     print(effect)
     cohen = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
+    columns_with_effect = []
     print("Cohens")
     print(cohen)
 
@@ -208,15 +209,30 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
     for col_name in columns:
         if effect[col_name] > 0.05:
             cohen[col_name] = 0.0
+        else:
+            columns_with_effect.append(col_name)
+    stars = {col_name: max(pre2_means[col_name], post2_means[col_name]) + 0.1 for col_name in columns_with_effect}
+    print("Stars")
+    print(stars)
 
-    df2 = (pd.DataFrame(data={
+    df2 = (pd.DataFrame({
         'Pre': pre2_means,
         'Post': post2_means,
         # 'Effect': effect,
-        'Cohen': cohen})
+        'Cohen': cohen,
+        'Stars': stars})
            .sort_values(by=['Pre']))
-    ax = df2.plot(secondary_y='Cohen')
-    fig = ax.get_figure()
+    ax1 = df2[['Pre']].plot(zorder=0, marker='s', markersize=8, linestyle='dashed')
+    df2[['Post']].plot(ax=ax1, zorder=1, marker='o', markersize=8, linestyle='dashed')
+    df2[['Stars']].plot(ax=ax1, marker='*', markersize=10, color='black', zorder=2)
+
+    df2[['Cohen']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
+                        secondary_y=True)
+
+    labels = [re.search('_(.*)->', item.get_text()).group(1) for item in ax1.get_xticklabels()]
+    ax1.set_xticklabels(labels, fontsize=8)
+    ax1.tick_params(axis='y', labelsize=8)
+    fig = ax1.get_figure()
     fig.savefig(filename, dpi=200)
 
 
