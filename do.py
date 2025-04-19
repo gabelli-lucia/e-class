@@ -215,7 +215,7 @@ def mean_and_sigma_of_columns_by_name(df: pd.DataFrame, sub_column_name: str):
 
     err = 1.96 * (s.std() / np.sqrt(s.count()))
 
-    return s.mean(), s.std(), err
+    return round(s.mean(), 2), round(s.std(), 2), round(err, 2)
 
 
 def chart_means(pre, post, filename):
@@ -232,6 +232,7 @@ def chart_means(pre, post, filename):
     Returns:
         None
     """
+
     mean_pre_tu, sigma_pre_tu, err_pre_tu = mean_and_sigma_of_columns_by_name(pre, conf.COL_TU)
     mean_pre_exp, sigma_pre_exp, err_pre_exp = mean_and_sigma_of_columns_by_name(pre, conf.COL_EXP)
     mean_post_tu, sigma_post_tu, err_post_tu = mean_and_sigma_of_columns_by_name(post, conf.COL_TU)
@@ -251,7 +252,21 @@ def chart_means(pre, post, filename):
     # err = pd.DataFrame(
     #     {'pre/post': ['Pre', 'Post'], 'YOU': [sigma_pre_tu, sigma_post_tu], 'Expert': [sigma_pre_exp, sigma_post_exp]})
     err = [[err_pre_tu, err_post_tu], [err_pre_exp, err_post_exp]]
+
     ax = means.plot.bar(x='pre/post', y=['YOU', 'Expert'], rot=0, capsize=4, yerr=err, color=['green', 'red'])
+    # Titolo del grafico
+    ax.set_title('Overall E-CLASS score on "What do YOU think..."\nand "What do EXPERTS think..." statements')
+    # Cancella il titolo dell'asse X (che sarebbe 'pre/post')
+    ax.set_xlabel('')
+    # Titolo dell'asse Y
+    ax.set_ylabel('Fraction of statements\nwith expert-like response')
+    # Estremi dell'asse Y
+    ax.set_ylim([0, 1])
+    # Scrive i valori sulle barre. Bisogna considerare solo i container di indice pari poiché i dispari sono i container
+    # degli errori.
+    for container in ax.containers[1::2]:
+        ax.bar_label(container)
+
     fig = ax.get_figure()
     fig.savefig(filename, dpi=200)
 
