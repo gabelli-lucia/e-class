@@ -4,6 +4,7 @@ from enum import Enum
 from math import sqrt
 from statistics import mean, stdev
 
+import pandas
 from scipy.stats import mannwhitneyu
 
 import pandas as pd
@@ -25,6 +26,19 @@ class PrePost(Enum):
 
 
 def read_files(pp, *files):
+    """Reads and processes CSV files containing survey data.
+
+    This function reads multiple CSV files, concatenates them, removes specified columns,
+    filters rows based on CHECK columns, standardizes IDs, handles duplicate IDs,
+    inverts specified columns, and processes matricola numbers.
+
+    Args:
+        pp (PrePost): Enum indicating if this is PRE or POST data
+        *files: Variable number of CSV file paths to read
+
+    Returns:
+        pandas.DataFrame: Processed dataframe containing the survey data
+    """
     df = pd.DataFrame()
 
     for file in files:
@@ -132,7 +146,20 @@ def column_is_to_be_mapped(column_name, veto):
     return True
 
 
-def clone_and_map(df, mapping, veto):
+def clone_and_map(df: pd.DataFrame, mapping: list, veto: list):
+    """Creates a copy of the dataframe with values mapped according to the provided mapping.
+
+    This function creates a copy of the input dataframe and maps the values in mappable columns
+    (determined by column_is_to_be_mapped) using the provided mapping array.
+
+    Args:
+        df (pandas.DataFrame): DataFrame to clone and map
+        mapping (list): List of values to map to (index+1 in original maps to value at index)
+        veto (list): List of column name prefixes to exclude from mapping
+
+    Returns:
+        pandas.DataFrame: A new dataframe with mapped values
+    """
     copy = df.copy()
     for c in [c for c in copy.columns if column_is_to_be_mapped(c, veto)]:
         # all ID should be upper case
@@ -141,8 +168,19 @@ def clone_and_map(df, mapping, veto):
     return copy
 
 
-def join_by_matricola(sx, dx):
-    """This methods joins two DataFrames by the conf.COL_MATRICOLA column."""
+def join_by_matricola(sx: pd.DataFrame, dx: pd.DataFrame):
+    """Joins two DataFrames by the matricola column.
+
+    This method joins two DataFrames by the conf.COL_MATRICOLA column, adding suffixes
+    "_pre" and "_post" to distinguish columns from each dataframe.
+
+    Args:
+        sx (pandas.DataFrame): First DataFrame (typically pre-test data)
+        dx (pandas.DataFrame): Second DataFrame (typically post-test data)
+
+    Returns:
+        pandas.DataFrame: Joined DataFrame containing only rows with matching matricola values
+    """
     # Joining the two tables
     log.info(f"Joining...")
     log.debug(f"{sx[conf.COL_MATRICOLA]}")
@@ -153,9 +191,19 @@ def join_by_matricola(sx, dx):
     return result
 
 
-def mean_and_sigma_of_columns_by_name(df, sub_column_name):
-    """This method returns the sigmas of all the values of the column that have
-     sub_column_name in the name."""
+def mean_and_sigma_of_columns_by_name(df: pd.DataFrame, sub_column_name: str):
+    """Calculates statistics for columns containing a specific substring.
+
+    This method calculates the mean, standard deviation, and 95% confidence interval
+    error for all columns in the dataframe that contain the specified substring in their name.
+
+    Args:
+        df (pandas.DataFrame): DataFrame containing the data to analyze
+        sub_column_name (str): Substring to filter columns (e.g., 'TU' for student columns)
+
+    Returns:
+        tuple: A tuple containing (mean, standard_deviation, error_95_percent)
+    """
     s = pd.concat([df[col] for col in df.columns if sub_column_name in col])
 
     err = 1.96 * (s.std() / np.sqrt(s.count()))
@@ -164,6 +212,19 @@ def mean_and_sigma_of_columns_by_name(df, sub_column_name):
 
 
 def chart_means(pre, post, filename):
+    """Creates a bar chart comparing pre and post means for 'YOU' and 'Expert' categories.
+
+    This function calculates means, standard deviations, and error values for both
+    pre and post data, then creates a bar chart visualization and saves it to a file.
+
+    Args:
+        pre (pandas.DataFrame): DataFrame containing pre-test data
+        post (pandas.DataFrame): DataFrame containing post-test data
+        filename (str): Path where the chart image will be saved
+
+    Returns:
+        None
+    """
     mean_pre_tu, sigma_pre_tu, err_pre_tu = mean_and_sigma_of_columns_by_name(pre, conf.COL_TU)
     mean_pre_exp, sigma_pre_exp, err_pre_exp = mean_and_sigma_of_columns_by_name(pre, conf.COL_EXP)
     mean_post_tu, sigma_post_tu, err_post_tu = mean_and_sigma_of_columns_by_name(post, conf.COL_TU)
@@ -189,11 +250,40 @@ def chart_means(pre, post, filename):
 
 
 def cohensd(c0, c1):
+    """Calculates Cohen's d effect size between two collections of values.
+
+    Cohen's d is a standardized measure of effect size, representing the difference
+    between two means divided by the pooled standard deviation.
+
+    Args:
+        c0 (list or array-like): First collection of numeric values
+        c1 (list or array-like): Second collection of numeric values
+
+    Returns:
+        float: Cohen's d effect size value
+    """
     cohens_d = (mean(c0) - mean(c1)) / (sqrt((stdev(c0) ** 2 + stdev(c1) ** 2) / 2))
     return cohens_d
 
 
 def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
+    """Creates a chart showing pre/post comparison with statistical significance indicators.
+
+    This function creates a visualization that shows pre and post means for columns containing
+    the specified substring, along with Cohen's d effect size and significance markers (stars)
+    for statistically significant changes (p < 0.05).
+
+    Args:
+        pre (pandas.DataFrame): Original pre-test data
+        post (pandas.DataFrame): Original post-test data
+        pre2 (pandas.DataFrame): Mapped pre-test data
+        post2 (pandas.DataFrame): Mapped post-test data
+        substring (str): Substring to filter columns (e.g., 'TU' for student columns)
+        filename (str): Path where the chart image will be saved
+
+    Returns:
+        None
+    """
     columns = [c for c in pre2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST) and substring in c]
     pre2_means = {col_name: pre2[col_name].mean() for col_name in columns}
     post2_means = {col_name: post2[col_name].mean() for col_name in columns}
@@ -237,6 +327,17 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
 
 
 def dump_averages(df):
+    """Prints the average values for all mappable columns in the dataframe.
+
+    This function identifies all columns that should be mapped (based on configuration),
+    calculates their mean values, and prints them to the console.
+
+    Args:
+        df (pandas.DataFrame): DataFrame containing the data to analyze
+
+    Returns:
+        None
+    """
     columns = [c for c in df.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_PRE)]
 
     pre2_means = {col_name: df[col_name].mean() for col_name in columns}
