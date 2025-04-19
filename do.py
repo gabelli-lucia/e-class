@@ -334,16 +334,29 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
         'Cohen': cohen,
         'Stars': stars})
            .sort_values(by=['Pre']))
+
     ax1 = df2[['Pre']].plot(zorder=0, marker='s', markersize=8, linestyle='dashed')
     df2[['Post']].plot(ax=ax1, zorder=1, marker='o', markersize=8, linestyle='dashed')
-    df2[['Stars']].plot(ax=ax1, marker='*', markersize=10, color='black', zorder=2)
-
+    df2[['Stars']].plot(ax=ax1, marker='*', markersize=10, color='black', zorder=2, legend=False)
     df2[['Cohen']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
-                        secondary_y=True)
+                        secondary_y=True, legend=False)
 
+    # Titolo del grafico
+    ax1.set_title('Average score on "What do YOU think" questions')
+    # Etichette sull'asse X
     labels = [re.search('(.*)->', item.get_text()).group(1) for item in ax1.get_xticklabels()]
     ax1.set_xticklabels(labels, fontsize=8)
+    # Titolo dell'asse X
+    ax1.set_xlabel('Question')
+    # Etichette sull'asse Y
     ax1.tick_params(axis='y', labelsize=8)
+    # Titolo dell'asse Y
+    ax1.set_ylabel('Average Agreement with Experts')
+    # Titolo dell'asse Y secondario
+    ax1.twinx().set_ylabel('Effect Size')
+    # Griglia con righe solo verticali
+    ax1.xaxis.grid(True, linestyle='dashed', linewidth=0.5)
+
     fig = ax1.get_figure()
     fig.savefig(filename, dpi=200)
 
