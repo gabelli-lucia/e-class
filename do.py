@@ -288,7 +288,7 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
 
     This function creates a visualization that shows pre and post means for columns containing
     the specified substring, along with Cohen's d effect size and significance markers (stars)
-    for statistically significant changes (p < 0.05).
+    for statistically significant changes (p < conf.EFFECT_THRESHOLD).
 
     Args:
         pre (pandas.DataFrame): Original pre-test data
@@ -312,9 +312,9 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
     print("Cohens")
     print(cohen)
 
-    # Bisogna azzerare cohen per le colonne che hanno effect > 0.05 (o 0.001)
+    # Bisogna azzerare cohen per le colonne che hanno effect > conf.EFFECT_THRESHOLD
     for col_name in columns:
-        if effect[col_name] > 0.05:
+        if effect[col_name] > conf.EFFECT_THRESHOLD:
             cohen[col_name] = 0.0
         else:
             columns_with_effect.append(col_name)
