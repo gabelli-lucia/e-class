@@ -47,9 +47,9 @@ def read_files(pp, *files):
     df = pd.DataFrame()
 
     for file in files:
-        log.info(f"{pp.name}: Reading {file}")
         df = pd.concat([df, pd.read_csv(file, skiprows=0 if file == files[0] else 1)])
-    log.info(f"{pp.name}: Read shape {df.shape}")
+        log.info(f"{pp.name}: Reading {file}: {len(df)} rows")
+    log.debug(f"{pp.name}: Read shape {df.shape}")
 
     log.debug(f"Found columns: {df.columns}")
     log.debug("Removing _ prefixes from column names")
@@ -68,7 +68,7 @@ def read_files(pp, *files):
         df = df[df[check] == 4]
     # Removing the CHECK columns
     df.drop(check_columns, axis=1, inplace=True)
-    log.info(f"{pp.name}: Passed CHECK shape {df.shape}")
+    log.info(f"{pp.name}: Passed CHECK {len(df)} rows")
 
     # all ID should be upper case
     for index, row in df.iterrows():
@@ -78,12 +78,12 @@ def read_files(pp, *files):
     dup = df.duplicated(subset=[conf.COL_ID])
     ids = df[conf.COL_ID]
     if True in dup.unique():
-        log.error(
+        log.debug(
             f"{pp.name}: Duplicate IDs: {df[ids.isin(ids[ids.duplicated()])].sort_values(conf.COL_ID)[conf.COL_ID].unique()}")
         # exit(1)
 
     # Inverting the columns that need inversion
-    log.info(f"Inverting columns {conf.COL_TO_INVERT}")
+    log.debug(f"Inverting columns {conf.COL_TO_INVERT}")
     invert_columns = [col for col in df.columns if column_is_to_be_inverted(col)]
     log.debug(f"Inverting columns {invert_columns}")
     for index, row in df.iterrows():
@@ -197,11 +197,11 @@ def join_by_matricola(sx: pd.DataFrame, dx: pd.DataFrame):
         pandas.DataFrame: Joined DataFrame containing only rows with matching matricola values
     """
     # Joining the two tables
-    log.info(f"Joining...")
+    log.debug(f"Joining...")
     log.debug(f"{sx[conf.COL_MATRICOLA]}")
     log.debug(f"{dx[conf.COL_MATRICOLA]}")
     result = pd.merge(sx, dx, on=conf.COL_MATRICOLA, suffixes=("_pre", "_post"))
-    log.info(f"Joined: got {result.shape}")
+    log.info(f"Joined: got {len(result)} rows")
     log.debug(result.head())
     return result
 
@@ -246,14 +246,14 @@ def chart_means(pre, post, filename):
     mean_post_tu, sigma_post_tu, err_post_tu = mean_and_sigma_of_columns_by_name(post, conf.COL_TU)
     mean_post_exp, sigma_post_exp, err_post_exp = mean_and_sigma_of_columns_by_name(post, conf.COL_EXP)
 
-    log.info(f"Averages pre:  TU: {mean_pre_tu}, EXP: {mean_pre_exp}")
-    log.info(f"Averages post: TU: {mean_post_tu}, EXP: {mean_post_exp}")
+    log.debug(f"Averages pre:  TU: {mean_pre_tu}, EXP: {mean_pre_exp}")
+    log.debug(f"Averages post: TU: {mean_post_tu}, EXP: {mean_post_exp}")
 
-    log.info(f"Sigmas pre:    TU: {sigma_pre_tu}, EXP: {sigma_pre_exp}")
-    log.info(f"Sigmas post:   TU: {sigma_post_tu}, EXP: {sigma_post_exp}")
+    log.debug(f"Sigmas pre:    TU: {sigma_pre_tu}, EXP: {sigma_pre_exp}")
+    log.debug(f"Sigmas post:   TU: {sigma_post_tu}, EXP: {sigma_post_exp}")
 
-    log.info(f"Err 95% pre:   TU: {err_pre_tu}, EXP: {err_pre_exp}")
-    log.info(f"Err 95% post:  TU: {err_post_tu}, EXP: {err_post_exp}")
+    log.debug(f"Err 95% pre:   TU: {err_pre_tu}, EXP: {err_pre_exp}")
+    log.debug(f"Err 95% post:  TU: {err_post_tu}, EXP: {err_post_exp}")
 
     means = pd.DataFrame(
         {'pre/post': ['Pre', 'Post'], 'YOU': [mean_pre_tu, mean_post_tu], 'Expert': [mean_pre_exp, mean_post_exp]})
@@ -318,12 +318,10 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
     pre2_means = {col_name: pre2[col_name].mean() for col_name in columns}
     post2_means = {col_name: post2[col_name].mean() for col_name in columns}
     effect = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
-    print("Effect")
-    print(effect)
+    log.debug(f"Effect {effect}")
     cohen = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
     columns_with_effect = []
-    print("Cohens")
-    print(cohen)
+    log.debug(f"Cohen {cohen}")
 
     # Bisogna azzerare cohen per le colonne che hanno effect > conf.EFFECT_THRESHOLD
     for col_name in columns:
@@ -332,8 +330,7 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
         else:
             columns_with_effect.append(col_name)
     stars = {col_name: max(pre2_means[col_name], post2_means[col_name]) + 0.1 for col_name in columns_with_effect}
-    print("Stars")
-    print(stars)
+    log.debug(f"Stars: {stars}")
 
     df2 = (pd.DataFrame({
         'Pre': pre2_means,
@@ -503,7 +500,7 @@ def dump_success(df: pd.DataFrame, filename: str):
     Returns:
         None
     """
-    log.info('Looking for Important Questions')
+    log.debug('Looking for Important Questions')
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=['question', 'success'], quoting=csv.QUOTE_ALL)
         writer.writeheader()
@@ -513,7 +510,7 @@ def dump_success(df: pd.DataFrame, filename: str):
                 count = df[col_name].count()
                 v_count = df[col_name].value_counts()[1]
                 fraction = v_count / count
-                log.info(f"Q{i},{fraction:.3f}")
+                log.debug(f"Q{i},{fraction:.3f}")
                 writer.writerow({
                     'question': col_name,
                     'success': f"{fraction:.3f}"
@@ -566,13 +563,14 @@ if __name__ == "__main__":
         log.error(message)
         exit(1)
 
-    log.info(f"Reading {filenames}")
+    # log.info(f"Reading {filenames}")
     pre = read_files(PrePost.PRE, *filenames)
 
     filenames = list(map(lambda x: x.replace(PrePost.PRE.name, PrePost.POST.name), filenames))
-    log.info(f"Reading {filenames}")
+    # log.info(f"Reading {filenames}")
     post = read_files(PrePost.POST, *filenames)
 
+    log.info("Restoring Matricola")
     restore_matricola_from_id(pre, post)
     restore_matricola_from_id(post, pre)
     populate_matricola_from_id(pre)
@@ -595,17 +593,20 @@ if __name__ == "__main__":
     # post2.to_excel(f"post2.xlsx")
     # post3.to_excel(f"post3.xlsx")
 
+    log.info(f"Saving CSV files")
     dump_success(post3, 'out-success.csv')
-
     dump_averages(pre2, post2, "out-medie.csv")
 
-    join = join_by_matricola(pre, post)
-    join2 = join_by_matricola(pre2, post2)
-    join3 = join_by_matricola(pre3, post3)
+    # join = join_by_matricola(pre, post)
+    # join2 = join_by_matricola(pre2, post2)
+    # join3 = join_by_matricola(pre3, post3)
     # join.to_excel(f"join.xlsx")
     # join2.to_excel(f"join2.xlsx")
     # join3.to_excel(f"join3.xlsx")
 
+    log.info(f"Saving charts")
     chart_means(pre2, post2, 'out-chart-means.png')
     chart_what_do_you_think(pre, post, pre3, post3, conf.COL_TU, 'out-chart-what-do-you-think.png')
     chart_before_after(pre2, post2, 'out-chart-after-before.png')
+
+    log.info("Done.")
