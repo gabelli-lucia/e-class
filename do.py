@@ -193,29 +193,6 @@ def clone_and_map(df: pd.DataFrame, mapping: list, veto: list):
     return copy
 
 
-def join_by_matricola(sx: pd.DataFrame, dx: pd.DataFrame):
-    """Joins two DataFrames by the matricola column.
-
-    This method joins two DataFrames by the conf.COL_MATRICOLA column, adding suffixes
-    "_pre" and "_post" to distinguish columns from each dataframe.
-
-    Args:
-        sx (pandas.DataFrame): First DataFrame (typically pre-test data)
-        dx (pandas.DataFrame): Second DataFrame (typically post-test data)
-
-    Returns:
-        pandas.DataFrame: Joined DataFrame containing only rows with matching matricola values
-    """
-    # Joining the two tables
-    log.debug(f"Joining...")
-    log.debug(f"{sx[conf.COL_MATRICOLA]}")
-    log.debug(f"{dx[conf.COL_MATRICOLA]}")
-    result = pd.merge(sx, dx, on=conf.COL_MATRICOLA, suffixes=("_pre", "_post"))
-    log.info(f"Joined: got {len(result)} rows")
-    log.debug(result.head())
-    return result
-
-
 def mean_and_sigma_of_columns_by_name(df: pd.DataFrame, sub_column_name: str):
     """Calculates statistics for columns containing a specific substring.
 
@@ -612,13 +589,6 @@ if __name__ == "__main__":
     log.info(f"Saving CSV files")
     dump_success(post3, 'out-success.csv')
     dump_averages(pre2, post2, "out-medie.csv")
-
-    # join = join_by_matricola(pre, post)
-    # join2 = join_by_matricola(pre2, post2)
-    # join3 = join_by_matricola(pre3, post3)
-    # join.to_excel(f"join.xlsx")
-    # join2.to_excel(f"join2.xlsx")
-    # join3.to_excel(f"join3.xlsx")
 
     log.info(f"Saving charts")
     chart_means(pre2, post2, 'out-chart-means.png')
