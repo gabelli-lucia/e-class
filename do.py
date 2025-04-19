@@ -141,6 +141,15 @@ def populate_matricola_from_id(df: pd.DataFrame):
             df.at[index, conf.COL_MATRICOLA] = row[conf.COL_ID]
 
 
+def remove_unmatched_rows(sx: pd.DataFrame, dx: pd.DataFrame):
+    log.debug("Removing unmatched rows")
+    # log.info(f"BEFORE Sizes: sx={len(sx)}, dx={len(dx)}")
+    sx = sx.loc[np.where(sx[conf.COL_MATRICOLA].isin(dx[conf.COL_MATRICOLA]), True, False)]
+    # log.info(f"AFTER Sizes: sx={len(sx)}, dx={len(dx)}")
+    # log.info(sx)
+    return sx
+
+
 def column_is_to_be_mapped(column_name, veto):
     """Determines if a column should be mapped based on its name and veto list.
 
@@ -576,6 +585,12 @@ if __name__ == "__main__":
     restore_matricola_from_id(post, pre)
     populate_matricola_from_id(pre)
     populate_matricola_from_id(post)
+
+    pre = remove_unmatched_rows(pre, post)
+    post = remove_unmatched_rows(post, pre)
+    pre = remove_unmatched_rows(pre, post)
+    post = remove_unmatched_rows(post, pre)
+    log.info(f"Removing unmatched rows. Survived pre: {len(pre)} post: {len(post)}")
 
     # TODO se ci sono duplicati, bisogna tranquillamente ignorare quelli che dall'altra parte non ci sono
 
