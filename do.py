@@ -505,7 +505,7 @@ def dump_success(df: pd.DataFrame, filename: str):
     """
     log.info('Looking for Important Questions')
     with open(filename, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['question', 'success'])
+        writer = csv.DictWriter(csvfile, fieldnames=['question', 'success'], quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for i in range(1, len(conf.Q) + 1):
             col_name = find_column(i, conf.COL_SUCESS, df)
@@ -539,7 +539,8 @@ def dump_averages(pre, post, filename):
     effect = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
     cohen = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
     with open(filename, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['question', 'pre avg', 'post avg', 'mann-whitney', 'cohen'])
+        writer = csv.DictWriter(csvfile, fieldnames=['question', 'pre avg', 'post avg', 'mann-whitney', 'cohen'],
+                                quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for col_name in [c for c in pre.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST)]:
             writer.writerow({

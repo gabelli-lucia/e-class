@@ -3,3 +3,6 @@
 /*.xlsx
 .DS_Store
 /*.png
+/build
+/dist
+do.spec
