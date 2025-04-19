@@ -99,15 +99,7 @@ def column_is_to_be_inverted(col):
         if column_name in col:
             return True
 
-
-def populate_matricola_from_id(df):
-    """This method populates the empty Matricola with the ID of that row."""
-    for index, row in df.iterrows():
-        if row[conf.COL_MATRICOLA] == '':
-            df.at[index, conf.COL_MATRICOLA] = row[conf.COL_ID]
-
-
-def restore_matricola(sx, dx):
+def restore_matricola_from_id(sx: pd.DataFrame, dx: pd.DataFrame):
     """This method populates empty Matricola in sx looking up the Matricola in sx
     with the same ID."""
     log.debug(f"Restoring Matricola")
@@ -128,6 +120,11 @@ def restore_matricola(sx, dx):
                         log.debug(f" ID {sx_id} has Matricola {dx_matricola}")
                         sx.at[index, conf.COL_MATRICOLA] = dx_matricola
 
+def populate_matricola_from_id(df: pd.DataFrame):
+    """This method populates the empty Matricola with the ID of that row."""
+    for index, row in df.iterrows():
+        if row[conf.COL_MATRICOLA] == '':
+            df.at[index, conf.COL_MATRICOLA] = row[conf.COL_ID]
 
 def column_is_to_be_mapped(column_name, veto):
     """Says whether this column values should be remapped.
@@ -358,8 +355,8 @@ if __name__ == "__main__":
     log.info(f"Reading {filenames}")
     post = read_files(PrePost.POST, *filenames)
 
-    restore_matricola(pre, post)
-    restore_matricola(post, pre)
+    restore_matricola_from_id(pre, post)
+    restore_matricola_from_id(post, pre)
     populate_matricola_from_id(pre)
     populate_matricola_from_id(post)
 
