@@ -21,6 +21,8 @@ MAPPING3 = [-1, -1, 0, 1, 1]
 COL_TU = " TU "
 # Substrings of the tile of columns that are about experts
 COL_EXP = " fisici "
+# Substring of the tile of columns that are about success.
+COL_SUCESS = " importante, "
 
 Q = [
     "When doing an experiment, I try to understand how the experimental setup works.",

@@ -1,3 +1,4 @@
+import csv
 import re
 import sys
 from enum import Enum
@@ -375,7 +376,7 @@ def find_question(i, df: pd.DataFrame):
     return f"Q{i}: {conf.Q[i - 1]}"
 
 
-def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame):
+def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame, filename):
     log.debug('chart_before_after')
     # Create a single figure with 30 subplots (15 rows, 2 columns)
     # This will display all 30 questions in a grid layout
@@ -441,15 +442,43 @@ def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame):
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.0, wspace=0.1)  # No vertical space, minimal horizontal space
 
-    fig.savefig('chart_30plot.png', format='png', dpi=400)
+    fig.savefig(filename, format='png', dpi=400)
     plt.close()  # Close the figure to free up memory resources
 
 
+def dump_success(df: pd.DataFrame, filename: str):
+    log.info('Looking for Important Questions')
+    with open(filename, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=['question', 'success'])
+        writer.writeheader()
+        for i in range(1, conf.MAX_QUESTIONS + 1):
+            col_name = find_column(i, conf.COL_SUCESS, df)
+            if col_name is not None:
+                count = df[col_name].count()
+                v_count = df[col_name].value_counts()[1]
+                fraction = v_count / count
+                log.info(f"Q{i},{fraction:.3f}")
+                writer.writerow({
+                    'question': col_name,
+                    'success': f"{fraction:.3f}"
+                })
+
+
 def dump_averages(pre, post, filename):
-    columns = [c for c in pre.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST)]
-    pre_means = {col_name: pre[col_name].mean() for col_name in columns}
-    post_means = {col_name: post[col_name].mean() for col_name in columns}
-    pd.DataFrame([pre_means, post_means]).to_csv(filename, index=False)
+    columns = [c for c in pre2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST)]
+    effect = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
+    cohen = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
+    with open(filename, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=['question', 'pre avg', 'post avg', 'mann-whitney', 'cohen'])
+        writer.writeheader()
+        for col_name in [c for c in pre.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST)]:
+            writer.writerow({
+                'question': col_name,
+                'pre avg': pre[col_name].mean(),
+                'post avg': post[col_name].mean(),
+                'mann-whitney': effect[col_name],
+                'cohen': cohen[col_name]
+            })
 
 
 if __name__ == "__main__":
@@ -480,27 +509,29 @@ if __name__ == "__main__":
     # Now, IDs are no more needed
     pre.drop([conf.COL_ID], axis=1, inplace=True)
     post.drop([conf.COL_ID], axis=1, inplace=True)
-    pre.to_excel(f"pre.xlsx")
-    post.to_excel(f"post.xlsx")
+    # pre.to_excel(f"pre.xlsx")
+    # post.to_excel(f"post.xlsx")
 
     pre2 = clone_and_map(pre, conf.MAPPING2, conf.COL_DONT_MAP_PRE)
     pre3 = clone_and_map(pre, conf.MAPPING3, conf.COL_DONT_MAP_PRE)
     post2 = clone_and_map(post, conf.MAPPING2, conf.COL_DONT_MAP_POST)
     post3 = clone_and_map(post, conf.MAPPING3, conf.COL_DONT_MAP_POST)
-    pre2.to_excel(f"pre2.xlsx")
-    pre3.to_excel(f"pre3.xlsx")
-    post2.to_excel(f"post2.xlsx")
-    post3.to_excel(f"post3.xlsx")
+    # pre2.to_excel(f"pre2.xlsx")
+    # pre3.to_excel(f"pre3.xlsx")
+    # post2.to_excel(f"post2.xlsx")
+    # post3.to_excel(f"post3.xlsx")
 
-    dump_averages(pre2, post2, "medie.csv")
+    dump_success(post3, 'out-success.csv')
+
+    dump_averages(pre2, post2, "out-medie.csv")
 
     join = join_by_matricola(pre, post)
     join2 = join_by_matricola(pre2, post2)
     join3 = join_by_matricola(pre3, post3)
-    join.to_excel(f"join.xlsx")
-    join2.to_excel(f"join2.xlsx")
-    join3.to_excel(f"join3.xlsx")
+    # join.to_excel(f"join.xlsx")
+    # join2.to_excel(f"join2.xlsx")
+    # join3.to_excel(f"join3.xlsx")
 
-    chart_means(pre2, post2, 'chart_means.png')
-    chart_what_do_you_think(pre, post, pre3, post3, conf.COL_TU, 'chart_what_do_you_think.png')
-    chart_before_after(pre2, post2)
+    chart_means(pre2, post2, 'out-chart-means.png')
+    chart_what_do_you_think(pre, post, pre3, post3, conf.COL_TU, 'out-chart-what-do-you-think.png')
+    chart_before_after(pre2, post2, 'out-chart-after-before.png')
