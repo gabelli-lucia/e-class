@@ -141,6 +141,18 @@ def populate_matricola_from_id(df: pd.DataFrame):
 
 
 def column_is_to_be_mapped(column_name, veto):
+    """Determines if a column should be mapped based on its name and veto list.
+
+    This function checks if a column name contains the mapping indicator '->' and
+    is not in the veto list of column prefixes that should not be mapped.
+
+    Args:
+        column_name (str): The name of the column to check
+        veto (list): List of column name prefixes that should not be mapped
+
+    Returns:
+        bool: True if the column should be mapped, False otherwise
+    """
     if not '->' in column_name:
         return False
     for c in veto:
@@ -358,11 +370,18 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
 
 
 def find_column(i, substring, df: pd.DataFrame):
-    """
-    :param i: 1-based index
-    :param substring:
-    :param df:
-    :return:
+    """Finds a column in the DataFrame that starts with a specific index and contains a substring.
+
+    This function searches through the columns of a DataFrame to find a column that 
+    starts with the specified 1-based index followed by '->' and contains the given substring.
+
+    Args:
+        i (int): 1-based index to look for at the start of column names
+        substring (str): Substring that must be present in the column name
+        df (pd.DataFrame): DataFrame to search in
+
+    Returns:
+        str or None: The name of the matching column if found, None otherwise
     """
     for col in df.columns:
         if substring in col and col.startswith(f"{i}->"):
@@ -371,13 +390,36 @@ def find_column(i, substring, df: pd.DataFrame):
 
 
 def find_question(i, df: pd.DataFrame):
-    """
-    :param i: 1-based index
+    """Retrieves a formatted question string based on a 1-based index.
+
+    This function formats a question string by combining a 'Q' prefix with the index
+    and the corresponding question text from the conf.Q list.
+
+    Args:
+        i (int): 1-based index of the question to retrieve
+        df (pd.DataFrame): DataFrame (not used in the function but kept for interface consistency)
+
+    Returns:
+        str: Formatted question string in the format "Q{i}: {question_text}"
     """
     return f"Q{i}: {conf.Q[i - 1]}"
 
 
 def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame, filename):
+    """Creates a comprehensive chart comparing pre and post data for all questions.
+
+    This function generates a grid of subplots (15 rows, 2 columns) showing the pre and post
+    test results for all questions, sorted by pre-test mean values. Each subplot displays
+    the question text and visualizes the pre/post comparison with error bars.
+
+    Args:
+        pre (pd.DataFrame): DataFrame containing pre-test data
+        post (pd.DataFrame): DataFrame containing post-test data
+        filename (str): Path where the chart image will be saved
+
+    Returns:
+        None
+    """
     log.debug('chart_before_after')
     # Create a single figure with 30 subplots (15 rows, 2 columns)
     # This will display all 30 questions in a grid layout
@@ -448,6 +490,19 @@ def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame, filename):
 
 
 def dump_success(df: pd.DataFrame, filename: str):
+    """Calculates and exports success rates for questions to a CSV file.
+
+    This function identifies columns containing the conf.COL_SUCESS substring,
+    calculates the fraction of successful responses (value=1) for each question,
+    and writes the results to a CSV file.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the survey data with success columns
+        filename (str): Path where the CSV file will be saved
+
+    Returns:
+        None
+    """
     log.info('Looking for Important Questions')
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=['question', 'success'])
@@ -466,6 +521,20 @@ def dump_success(df: pd.DataFrame, filename: str):
 
 
 def dump_averages(pre, post, filename):
+    """Calculates and exports statistical comparisons between pre and post data to a CSV file.
+
+    This function computes the average values for pre and post data for each mappable column,
+    calculates Mann-Whitney U test p-values and Cohen's d effect sizes for the differences,
+    and writes all these statistics to a CSV file.
+
+    Args:
+        pre (pd.DataFrame): DataFrame containing pre-test data
+        post (pd.DataFrame): DataFrame containing post-test data
+        filename (str): Path where the CSV file will be saved
+
+    Returns:
+        None
+    """
     columns = [c for c in pre2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST)]
     effect = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
     cohen = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
