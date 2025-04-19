@@ -1,4 +1,13 @@
-# Istruzioni
+# Compilare in un eseguibile
+
+Usare pyinstaller:
+
+`pip install -U pyinstaller`
+`pyinstaller --onefile do.py`
+
+# Deprecato
+
+## Istruzioni per la versione originale
 
 Usare in ordine questi script:
 
@@ -9,4 +18,4 @@ Usare in ordine questi script:
 * In qualche modo produciamo il file `Analisi dati.csv`.
 
 * Si esegue `annota_corrispondenze.py`.
-* 
+

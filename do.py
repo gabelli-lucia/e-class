@@ -557,6 +557,9 @@ if __name__ == "__main__":
 
     doctest.testmod()
 
+    if len(sys.argv) == 0:
+        log.error('No arguments provided.')
+
     filenames = sys.argv[1:]
     isvalid, message = utils.verify_pre_post_files(*filenames)
     if not isvalid:
