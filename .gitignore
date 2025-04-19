@@ -5,6 +5,6 @@
 /*.png
 /build
 /dist
-do.spec
+/*.spec
 /do
 /e-class
