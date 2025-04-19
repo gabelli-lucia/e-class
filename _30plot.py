@@ -65,25 +65,25 @@ def draw_plot(ax, top_row, bottom_row, question):
     # Draw confidence interval regions as semi-transparent rectangles
     # For the user (top) response: blue rectangle from lower CI to upper CI
     ax.fill_betweenx([top_position - fill_height / 2, top_position + fill_height / 2], top_row[-2], top_row[-1],
-                     color='blue', alpha=0.5,
+                     color='green', alpha=0.5,
                      edgecolor='none', linewidth=0)
     # For the expert (bottom) response: green rectangle from lower CI to upper CI
     ax.fill_betweenx([bottom_position - fill_height / 2, bottom_position + fill_height / 2], bottom_row[-2],
-                     bottom_row[-1], color='green', alpha=0.5,
+                     bottom_row[-1], color='red', alpha=0.5,
                      edgecolor='none', linewidth=0)
 
     # Draw square representing the user's initial position (blue outline)
     # This square is positioned at top_row[0] on the x-axis and at top_position on the y-axis
     square_top = Rectangle((top_row[0] - square_height / 4, top_position - square_height / 2), square_height / 2,
                            square_height,
-                           edgecolor='blue', facecolor='white', label='YOU')
+                           edgecolor='green', facecolor='white', label='YOU')
     ax.add_patch(square_top)
 
-    # Draw square representing the expert's initial position (green outline)
+    # Draw square representing the expert's initial position (red outline)
     # This square is positioned at bottom_row[0] on the x-axis and at bottom_position on the y-axis
     square_bottom = Rectangle((bottom_row[0] - square_height / 4, bottom_position - square_height / 2),
                               square_height / 2, square_height,
-                              edgecolor='green', facecolor='white', label='EXPERT')
+                              edgecolor='red', facecolor='white', label='EXPERT')
     ax.add_patch(square_bottom)
 
     # Define the size of arrowheads for the arrows

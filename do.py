@@ -345,7 +345,7 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
 
     ax1 = df2[['Pre']].plot(zorder=0, marker='s', markersize=8, linestyle='dashed')
     df2[['Post']].plot(ax=ax1, zorder=1, marker='o', markersize=8, linestyle='dashed')
-    df2[['Stars']].plot(ax=ax1, marker='*', markersize=10, color='black', zorder=2, legend=False)
+    df2[['Stars']].plot(ax=ax1, marker='*', markersize=10, color='black', zorder=2, legend=False, linestyle='none')
     df2[['Cohen']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
                         secondary_y=True, legend=False)
 
