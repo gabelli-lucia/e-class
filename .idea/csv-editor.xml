@@ -3,7 +3,21 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="/ECLASS_Ita_POST_FIS2a-1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/ECLASS_Ita_POST_FIS2a.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/ECLASS_Ita_PRE_FIS2a-1.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -38,7 +52,21 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/esempi/ECLASS_Ita_POST_FIS2a-1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/esempi/ECLASS_Ita_PRE_2S_.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/esempi/ECLASS_Ita_PRE_FIS2a-1.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

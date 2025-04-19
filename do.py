@@ -16,7 +16,9 @@ import conf
 import openpyxl
 import matplotlib
 
-log.basicConfig(level=log.INFO)
+import utils
+
+log.basicConfig(level=log.DEBUG)
 
 
 class PrePost(Enum):
@@ -45,6 +47,11 @@ def read_files(pp, *files):
         log.info(f"{pp.name}: Reading {file}")
         df = pd.concat([df, pd.read_csv(file, skiprows=0 if file == files[0] else 1)])
     log.info(f"{pp.name}: Read shape {df.shape}")
+
+    log.debug(f"Found columns: {df.columns}")
+    log.debug("Removing _ prefixes from column names")
+    df = utils.remove_prefix_from_columns(df)
+    log.debug(f"Current columns: {df.columns}")
 
     # Removing unuseful columns
     df.drop(conf.COL_TO_DROP, axis=1, inplace=True)
@@ -96,8 +103,9 @@ def column_is_to_be_inverted(col):
     """This methods returns True if the name of column col is in the list of the columns
      that need to be inverted."""
     for column_name in conf.COL_TO_INVERT:
-        if column_name in col:
+        if col.startswith(column_name + "->"):
             return True
+
 
 def restore_matricola_from_id(sx: pd.DataFrame, dx: pd.DataFrame):
     """This method populates empty Matricola in sx looking up the Matricola in sx
@@ -120,11 +128,13 @@ def restore_matricola_from_id(sx: pd.DataFrame, dx: pd.DataFrame):
                         log.debug(f" ID {sx_id} has Matricola {dx_matricola}")
                         sx.at[index, conf.COL_MATRICOLA] = dx_matricola
 
+
 def populate_matricola_from_id(df: pd.DataFrame):
     """This method populates the empty Matricola with the ID of that row."""
     for index, row in df.iterrows():
         if row[conf.COL_MATRICOLA] == '':
             df.at[index, conf.COL_MATRICOLA] = row[conf.COL_ID]
+
 
 def column_is_to_be_mapped(column_name, veto):
     """Says whether this column values should be remapped.
@@ -135,10 +145,10 @@ def column_is_to_be_mapped(column_name, veto):
     >>> column_is_to_be_mapped('Titolo', ['Q01'])
     False
     """
-    if not column_name.startswith('Q'):
+    if not '->' in column_name:
         return False
     for c in veto:
-        if column_name.startswith(c):
+        if column_name.startswith(c + "->"):
             return False
     return True
 
@@ -316,7 +326,7 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
     df2[['Cohen']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
                         secondary_y=True)
 
-    labels = [re.search('_(.*)->', item.get_text()).group(1) for item in ax1.get_xticklabels()]
+    labels = [re.search('(.*)->', item.get_text()).group(1) for item in ax1.get_xticklabels()]
     ax1.set_xticklabels(labels, fontsize=8)
     ax1.tick_params(axis='y', labelsize=8)
     fig = ax1.get_figure()
@@ -348,6 +358,11 @@ if __name__ == "__main__":
     doctest.testmod()
 
     filenames = sys.argv[1:]
+    isvalid, message = utils.verify_pre_post_files(*filenames)
+    if not isvalid:
+        log.error(message)
+        exit(1)
+
     log.info(f"Reading {filenames}")
     pre = read_files(PrePost.PRE, *filenames)
 
