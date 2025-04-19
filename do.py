@@ -78,8 +78,9 @@ def read_files(pp, *files):
     dup = df.duplicated(subset=[conf.COL_ID])
     ids = df[conf.COL_ID]
     if True in dup.unique():
-        log.debug(
-            f"{pp.name}: Duplicate IDs: {df[ids.isin(ids[ids.duplicated()])].sort_values(conf.COL_ID)[conf.COL_ID].unique()}")
+        log.warning(
+            f"{pp.name}: Removing duplicate IDs: {df[ids.isin(ids[ids.duplicated()])].sort_values(conf.COL_ID)[conf.COL_ID].unique()}")
+        df.drop_duplicates(conf.COL_ID, keep=False, inplace=True)
         # exit(1)
 
     # Inverting the columns that need inversion
