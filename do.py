@@ -1,6 +1,7 @@
 import csv
 import re
 import sys
+import argparse
 from enum import Enum
 from math import sqrt
 from statistics import mean, stdev
@@ -476,7 +477,7 @@ def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame, filename):
 def dump_success(df: pd.DataFrame, filename: str):
     """Calculates and exports success rates for questions to a CSV file.
 
-    This function identifies columns containing the conf.COL_SUCESS substring,
+    This function identifies columns containing the conf.COL_SUCCESS substring,
     calculates the fraction of successful responses (value=1) for each question,
     and writes the results to a CSV file.
 
@@ -492,7 +493,7 @@ def dump_success(df: pd.DataFrame, filename: str):
         writer = csv.DictWriter(csvfile, fieldnames=['question', 'success'], quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for i in range(1, len(conf.Q) + 1):
-            col_name = find_column(i, conf.COL_SUCESS, df)
+            col_name = find_column(i, conf.COL_SUCCESS, df)
             if col_name is not None:
                 count = df[col_name].count()
                 v_count = df[col_name].value_counts()[1]
@@ -541,10 +542,28 @@ if __name__ == "__main__":
 
     doctest.testmod()
 
-    if len(sys.argv) == 0:
-        log.error('No arguments provided.')
+    # Create argument parser
+    parser = argparse.ArgumentParser(description='Process E-CLASS survey data.')
+    parser.add_argument('input_files', nargs='+', help='Input PRE file(s). POST files will be derived automatically.')
+    parser.add_argument('--threshold', type=float, default=conf.EFFECT_THRESHOLD, 
+                        help=f'Effect size threshold (default: {conf.EFFECT_THRESHOLD})')
+    parser.add_argument('--matricola', type=str, default=conf.COL_MATRICOLA,
+                        help=f'Matricola column name (default: {conf.COL_MATRICOLA})')
+    parser.add_argument('--lang', type=str, default="it",
+                        help=f'File language (it, en; default: it)')
 
-    filenames = sys.argv[1:]
+    # Parse arguments
+    args = parser.parse_args()
+
+    # Set the effect threshold from arguments
+    conf.EFFECT_THRESHOLD = args.threshold
+    conf.COL_MATRICOLA = args.matricola
+    if args.lang == 'en':
+        COL_TU = " YOU "
+        COL_EXP = " experts "
+        COL_SUCCESS = " important, "
+
+    filenames = args.input_files
     isvalid, message = utils.verify_pre_post_files(*filenames)
     if not isvalid:
         log.error(message)
