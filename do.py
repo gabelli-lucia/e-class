@@ -385,7 +385,7 @@ def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame, filename):
     sorted_by_pre_mean_tu = np.argsort(list(map(lambda col: col.mean(),
                                                 map(lambda c: pre[c],
                                                     map(lambda i: find_column(i, conf.COL_TU, pre),
-                                                        range(1, conf.MAX_QUESTIONS + 1))))))
+                                                        range(1, len(conf.Q) + 1))))))
 
     i = 0
     for ii in sorted_by_pre_mean_tu:
@@ -451,7 +451,7 @@ def dump_success(df: pd.DataFrame, filename: str):
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=['question', 'success'])
         writer.writeheader()
-        for i in range(1, conf.MAX_QUESTIONS + 1):
+        for i in range(1, len(conf.Q) + 1):
             col_name = find_column(i, conf.COL_SUCESS, df)
             if col_name is not None:
                 count = df[col_name].count()

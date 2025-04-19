@@ -1,7 +1,6 @@
 COL_CHECK = 'CHECK'
 COL_ID = 'ID-1'
 COL_MATRICOLA = 'Matricola'
-MAX_QUESTIONS = 30
 # Complete names of the columns that we need to drop from all files.
 COL_TO_DROP = ['Response', 'Submitted on:', 'Study Plan', 'Degree Code', 'Course', 'Group', 'ID',
                'Full name', 'Username', 'Course-3']
@@ -24,6 +23,7 @@ COL_EXP = " fisici "
 # Substring of the tile of columns that are about success.
 COL_SUCESS = " importante, "
 
+# This is the full list of the questions.
 Q = [
     "When doing an experiment, I try to understand how the experimental setup works.",
     "If I wanted to, I think I could be good at doing research.",
