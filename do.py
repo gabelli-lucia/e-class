@@ -3,6 +3,7 @@ import sys
 from enum import Enum
 from math import sqrt
 from statistics import mean, stdev
+import matplotlib.pyplot as plt
 
 import pandas
 from scipy.stats import mannwhitneyu
@@ -11,6 +12,7 @@ import pandas as pd
 import logging as log
 import numpy as np
 
+import _30plot
 import conf
 # This is needed to export XLSX files. I do not know why pandas does not import it by itself.
 import openpyxl
@@ -18,7 +20,7 @@ import matplotlib
 
 import utils
 
-log.basicConfig(level=log.DEBUG)
+log.basicConfig(level=log.INFO)
 
 
 class PrePost(Enum):
@@ -137,14 +139,6 @@ def populate_matricola_from_id(df: pd.DataFrame):
 
 
 def column_is_to_be_mapped(column_name, veto):
-    """Says whether this column values should be remapped.
-    >>> column_is_to_be_mapped('Q06_3', ['Q01'])
-    True
-    >>> column_is_to_be_mapped('Q01_ID-1', ['Q01'])
-    False
-    >>> column_is_to_be_mapped('Titolo', ['Q01'])
-    False
-    """
     if not '->' in column_name:
         return False
     for c in veto:
@@ -361,23 +355,101 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
     fig.savefig(filename, dpi=200)
 
 
-def dump_averages(df):
-    """Prints the average values for all mappable columns in the dataframe.
-
-    This function identifies all columns that should be mapped (based on configuration),
-    calculates their mean values, and prints them to the console.
-
-    Args:
-        df (pandas.DataFrame): DataFrame containing the data to analyze
-
-    Returns:
-        None
+def find_column(i, substring, df: pd.DataFrame):
     """
-    columns = [c for c in df.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_PRE)]
+    :param i: 1-based index
+    :param substring:
+    :param df:
+    :return:
+    """
+    for col in df.columns:
+        if substring in col and col.startswith(f"{i}->"):
+            return col
+    return None
 
-    pre2_means = {col_name: df[col_name].mean() for col_name in columns}
-    for col_name in columns:
-        print(f"{col_name}: {pre2_means[col_name]}")
+
+def find_question(i, df: pd.DataFrame):
+    """
+    :param i: 1-based index
+    """
+    return f"Q{i}: {conf.Q[i - 1]}"
+
+
+def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame):
+    log.debug('chart_before_after')
+    # Create a single figure with 30 subplots (15 rows, 2 columns)
+    # This will display all 30 questions in a grid layout
+    fig, axes = plt.subplots(15, 2, figsize=(10, 20), sharex=True, gridspec_kw={'width_ratios': [1, 1]})
+
+    sorted_by_pre_mean_tu = np.argsort(list(map(lambda col: col.mean(),
+                                                map(lambda c: pre[c],
+                                                    map(lambda i: find_column(i, conf.COL_TU, pre),
+                                                        range(1, conf.MAX_QUESTIONS + 1))))))
+
+    i = 0
+    for ii in sorted_by_pre_mean_tu:
+        log.debug('Looking for Question %d', ii + 1)
+        column_tu = find_column(ii + 1, conf.COL_TU, pre)
+        pre_mean_tu = pre[column_tu].mean()
+        pre_std_tu = pre[column_tu].std()
+        pre_err_tu = 1.96 * (pre_std_tu / np.sqrt(pre[column_tu].count()))
+        post_mean_tu = post[column_tu].mean()
+
+        column_exp = find_column(ii + 1, conf.COL_EXP, pre)
+        pre_mean_exp = pre[column_exp].mean()
+        pre_std_exp = pre[column_exp].std()
+        post_mean_exp = post[column_exp].mean()
+        pre_err_exp = 1.96 * (pre_std_exp / np.sqrt(pre[column_exp].count()))
+        question = find_question(ii + 1, post)
+
+        if question is not None:
+            ax = axes[i // 2, i % 2]
+            _30plot.draw_plot(ax,
+                              [pre_mean_tu, post_mean_tu, pre_mean_tu - pre_err_tu, pre_mean_tu + pre_err_tu],
+                              [pre_mean_exp, post_mean_exp, pre_mean_exp - pre_err_exp, pre_mean_exp + pre_err_exp],
+                              question)
+
+        if i % 2 == 1:
+            ax = axes[i // 2, i % 2]
+            # Position the y-axis ticks on the right side for the right column
+            # This improves readability when questions are displayed on both sides
+            ax.yaxis.tick_right()
+            ax.yaxis.set_label_position("right")
+
+        i = i + 1
+
+    # Add a legend to the last plot in the grid
+    # This explains the color coding (blue for user, green for expert)
+    axes[14, 1].legend()
+
+    # Add x-axis labels only to the bottom plots
+    # This avoids cluttering the figure with redundant labels
+    axes[14, 0].set_xlabel('Fraction of class with expert-like response')
+    axes[14, 1].set_xlabel('Fraction of class with expert-like response')
+
+    # Set the main title for the entire figure
+    axes[0, 0].set_title('What do YOU think? vs. what do EXPERTS think?', y=1.0, x=1.05, fontsize=21)
+
+    # Adjust the margins to ensure all elements fit properly
+    plt.subplots_adjust(bottom=0.15, top=0.8)
+
+    # Set consistent font size for all y-tick labels (question text)
+    for ax in axes.flatten():
+        ax.tick_params(axis='y', labelsize=10)
+
+    # Optimize the layout and adjust spacing between subplots
+    plt.tight_layout()
+    plt.subplots_adjust(hspace=0.0, wspace=0.1)  # No vertical space, minimal horizontal space
+
+    fig.savefig('chart_30plot.png', format='png', dpi=400)
+    plt.close()  # Close the figure to free up memory resources
+
+
+def dump_averages(pre, post, filename):
+    columns = [c for c in pre.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST)]
+    pre_means = {col_name: pre[col_name].mean() for col_name in columns}
+    post_means = {col_name: post[col_name].mean() for col_name in columns}
+    pd.DataFrame([pre_means, post_means]).to_csv(filename, index=False)
 
 
 if __name__ == "__main__":
@@ -420,8 +492,7 @@ if __name__ == "__main__":
     post2.to_excel(f"post2.xlsx")
     post3.to_excel(f"post3.xlsx")
 
-    print("MEDIE di pre2")
-    dump_averages(pre2)
+    dump_averages(pre2, post2, "medie.csv")
 
     join = join_by_matricola(pre, post)
     join2 = join_by_matricola(pre2, post2)
@@ -432,3 +503,4 @@ if __name__ == "__main__":
 
     chart_means(pre2, post2, 'chart_means.png')
     chart_what_do_you_think(pre, post, pre3, post3, conf.COL_TU, 'chart_what_do_you_think.png')
+    chart_before_after(pre2, post2)
