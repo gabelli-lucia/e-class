@@ -108,6 +108,7 @@ def column_is_to_be_inverted(col):
     for column_name in conf.COL_TO_INVERT:
         if col.startswith(column_name + "->"):
             return True
+    return False
 
 
 def restore_matricola_from_id(sx: pd.DataFrame, dx: pd.DataFrame):
