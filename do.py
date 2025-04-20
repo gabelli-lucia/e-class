@@ -1,11 +1,11 @@
 import csv
 import re
-import sys
 import argparse
 from enum import Enum
 from math import sqrt
 from statistics import mean, stdev
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 import pandas
 from scipy.stats import mannwhitneyu
@@ -13,14 +13,14 @@ from scipy.stats import mannwhitneyu
 import pandas as pd
 import logging as log
 import numpy as np
+import textwrap
 
-import _30plot
+from deprecated import utils
 import conf
+
 # This is needed to export XLSX files. I do not know why pandas does not import it by itself.
 import openpyxl
 import matplotlib
-
-import utils
 
 log.basicConfig(level=log.INFO)
 
@@ -390,6 +390,117 @@ def find_question(i, df: pd.DataFrame):
     return f"Q{i}: {conf.Q[i - 1]}"
 
 
+# Function to draw the plot for each row pair
+def draw_plot(ax, top_row, bottom_row, question):
+    """
+    Draw a comparison plot showing user and expert responses for a single question.
+
+    This function creates a visualization that compares user ("YOU") and expert responses
+    for a given question. It draws squares representing the responses, arrows showing
+    the direction and magnitude of changes, and confidence intervals as colored regions.
+
+    Parameters:
+    -----------
+    ax : matplotlib.axes.Axes
+        The matplotlib axes object where the plot will be drawn
+
+    top_row : numpy.ndarray
+        Array containing data for the user ("YOU") response:
+        - top_row[0]: Initial position
+        - top_row[1]: Final position
+        - top_row[-2]: Lower confidence interval bound
+        - top_row[-1]: Upper confidence interval bound
+
+    bottom_row : numpy.ndarray
+        Array containing data for the expert response:
+        - bottom_row[0]: Initial position
+        - bottom_row[1]: Final position
+        - bottom_row[-2]: Lower confidence interval bound
+        - bottom_row[-1]: Upper confidence interval bound
+
+    question : str
+        The text of the question to display as the y-axis label
+    """
+    square_height = 0.15  # Adjust the size of the squares
+    fill_height = 4 * square_height / 5  # - 0.01  # Adjust as needed
+    top_position = 0.75  # Adjust the vertical position of the top square
+    bottom_position = 0.25  # Adjust the vertical position of the bottom square
+
+    # Draw confidence interval regions as semi-transparent rectangles
+    # For the user (top) response: blue rectangle from lower CI to upper CI
+    ax.fill_betweenx([top_position - fill_height / 2, top_position + fill_height / 2], top_row[-2], top_row[-1],
+                     color='green', alpha=0.5,
+                     edgecolor='none', linewidth=0)
+    # For the expert (bottom) response: green rectangle from lower CI to upper CI
+    ax.fill_betweenx([bottom_position - fill_height / 2, bottom_position + fill_height / 2], bottom_row[-2],
+                     bottom_row[-1], color='red', alpha=0.5,
+                     edgecolor='none', linewidth=0)
+
+    # Draw square representing the user's initial position (blue outline)
+    # This square is positioned at top_row[0] on the x-axis and at top_position on the y-axis
+    square_top = Rectangle((top_row[0] - square_height / 4, top_position - square_height / 2), square_height / 2,
+                           square_height,
+                           edgecolor='green', facecolor='white', label='YOU')
+    ax.add_patch(square_top)
+
+    # Draw square representing the expert's initial position (red outline)
+    # This square is positioned at bottom_row[0] on the x-axis and at bottom_position on the y-axis
+    square_bottom = Rectangle((bottom_row[0] - square_height / 4, bottom_position - square_height / 2),
+                              square_height / 2, square_height,
+                              edgecolor='red', facecolor='white', label='EXPERT')
+    ax.add_patch(square_bottom)
+
+    # Define the size of arrowheads for the arrows
+    top_arrowhead_size = 0.02
+    bottom_arrowhead_size = 0.02
+
+    # Calculate arrow length for user (top) response
+    # The arrow shows the change from initial position (top_row[0]) to final position (top_row[1])
+    # We need to adjust the arrow length to account for the arrowhead
+    if abs(top_row[1] - top_row[0]) >= top_arrowhead_size:
+        if top_row[1] - top_row[0] >= 0:  # Moving right
+            top_arrow_length = top_row[1] - top_row[0] - top_arrowhead_size
+        else:  # Moving left
+            top_arrow_length = top_row[1] - top_row[0] + top_arrowhead_size
+    else:  # Very small change, use minimal arrow length
+        top_arrow_length = 0.000001
+        top_arrowhead_size = top_row[1] - top_row[0]
+
+    # Calculate arrow length for expert (bottom) response
+    # Similar logic as for the user response
+    if abs(bottom_row[1] - bottom_row[0]) >= bottom_arrowhead_size:
+        if bottom_row[1] - bottom_row[0] >= 0:  # Moving right
+            bottom_arrow_length = bottom_row[1] - bottom_row[0] - bottom_arrowhead_size
+        else:  # Moving left
+            bottom_arrow_length = bottom_row[1] - bottom_row[0] + bottom_arrowhead_size
+    else:  # Very small change, use minimal arrow length
+        bottom_arrow_length = 0.0000001
+        bottom_arrowhead_size = bottom_row[1] - bottom_row[0]
+
+    # Draw the arrow for user (top) response
+    ax.arrow(top_row[0], top_position, top_arrow_length, 0, head_width=top_arrowhead_size,
+             head_length=top_arrowhead_size, fc='black', ec='black', zorder=10)
+
+    # Draw the arrow for expert (bottom) response
+    ax.arrow(bottom_row[0], bottom_position, bottom_arrow_length, 0, head_width=bottom_arrowhead_size,
+             head_length=bottom_arrowhead_size, fc='black', ec='black', zorder=10)
+
+    # Set the question text as the y-axis label
+    # Position the label in the middle of the y-axis (at 0.5)
+    # Use textwrap to wrap long question text to multiple lines for better readability
+    ax.set_yticks([0.5])
+    ax.set_yticklabels([textwrap.fill(question, width=22)])  # Width of 22 characters per line
+
+    ax.set_xlim(0, 1)  # Set x-axis range from 0 to 1 (fraction of responses)
+    ax.set_ylim(0, 1)  # Set y-axis range
+
+    # Add vertical light grey dashed grid lines every 0.2 on the x-axis
+    # This helps with reading the values from the plot
+    ax.set_xticks(np.arange(0, 1.2, 0.2))
+    ax.set_xticklabels([f'{i:.1f}' for i in np.arange(0, 1.2, 0.2)])
+    ax.xaxis.grid(True, linestyle='--', alpha=0.7)
+
+
 def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame, filename):
     """Creates a comprehensive chart comparing pre and post data for all questions.
 
@@ -433,10 +544,10 @@ def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame, filename):
 
         if question is not None:
             ax = axes[i // 2, i % 2]
-            _30plot.draw_plot(ax,
-                              [pre_mean_tu, post_mean_tu, pre_mean_tu - pre_err_tu, pre_mean_tu + pre_err_tu],
-                              [pre_mean_exp, post_mean_exp, pre_mean_exp - pre_err_exp, pre_mean_exp + pre_err_exp],
-                              question)
+            draw_plot(ax,
+                      [pre_mean_tu, post_mean_tu, pre_mean_tu - pre_err_tu, pre_mean_tu + pre_err_tu],
+                      [pre_mean_exp, post_mean_exp, pre_mean_exp - pre_err_exp, pre_mean_exp + pre_err_exp],
+                      question)
 
         if i % 2 == 1:
             ax = axes[i // 2, i % 2]
@@ -545,7 +656,7 @@ if __name__ == "__main__":
     # Create argument parser
     parser = argparse.ArgumentParser(description='Process E-CLASS survey data.')
     parser.add_argument('input_files', nargs='+', help='Input PRE file(s). POST files will be derived automatically.')
-    parser.add_argument('--threshold', type=float, default=conf.EFFECT_THRESHOLD, 
+    parser.add_argument('--threshold', type=float, default=conf.EFFECT_THRESHOLD,
                         help=f'Effect size threshold (default: {conf.EFFECT_THRESHOLD})')
     parser.add_argument('--matricola', type=str, default=conf.COL_MATRICOLA,
                         help=f'Matricola column name (default: {conf.COL_MATRICOLA})')

@@ -56,7 +56,7 @@ def verify_pre_post_files(filename):
             - message (str): A message explaining the validation result
 
     Examples:
-        >>> verify_pre_post_files('ECLASS_Ita_PRE_FIS2a.csv')
+        >>> verify_pre_post_files('../ECLASS_Ita_PRE_FIS2a.csv')
         # If POST file exists: (True, 'Valid PRE file with corresponding POST file')
         # If POST file doesn't exist: (False, 'Corresponding POST file not found')
     """
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     print("New columns:", df_new.columns.tolist())
 
     # Example for verify_pre_post_files
-    test_file = 'ECLASS_Ita_PRE_FIS2a.csv'
+    test_file = '../ECLASS_Ita_PRE_FIS2a.csv'
     is_valid, message = verify_pre_post_files(test_file)
     print(f"\nVerifying file '{test_file}':")
     print(f"Valid: {is_valid}")

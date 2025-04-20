@@ -1,5 +1,5 @@
 """
-_30plot.py - Visualization tool for comparing user and expert responses
+30plot.py - Visualization tool for comparing user and expert responses
 
 This script creates a visualization comparing user responses with expert responses
 for a set of 30 questions. It loads data from text files, processes it, and generates
