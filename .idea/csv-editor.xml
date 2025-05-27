@@ -87,13 +87,6 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/medie.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/out-medie.csv">
           <value>
             <Attribute>
@@ -102,13 +95,6 @@
           </value>
         </entry>
         <entry key="/out-success.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/success.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

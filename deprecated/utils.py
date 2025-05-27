@@ -44,34 +44,39 @@ def remove_prefix_from_columns(df, separator='_'):
 
 def verify_pre_post_files(filename):
     """
-    Verifies that the filename contains '_PRE_' and that a corresponding file
-    with '_POST_' instead of '_PRE_' exists.
+    Verifies that the filename contains '_PRE_' and that corresponding files
+    with '_MID_' and '_POST_' instead of '_PRE_' exist.
 
     Args:
         filename (str): The filename to verify
 
     Returns:
         tuple: A tuple containing (is_valid, message)
-            - is_valid (bool): True if the filename contains '_PRE_' and the corresponding '_POST_' file exists
+            - is_valid (bool): True if the filename contains '_PRE_' and the corresponding '_MID_' and '_POST_' files exist
             - message (str): A message explaining the validation result
 
     Examples:
         >>> verify_pre_post_files('../ECLASS_Ita_PRE_FIS2a.csv')
-        # If POST file exists: (True, 'Valid PRE file with corresponding POST file')
-        # If POST file doesn't exist: (False, 'Corresponding POST file not found')
+        # If MID and POST files exist: (True, 'Valid PRE file with corresponding MID and POST files')
+        # If files don't exist: (False, 'Corresponding MID or POST file not found')
     """
     # Check if filename contains '_PRE_'
     if '_PRE_' not in filename:
         return False, f"Filename '{filename}' does not contain '_PRE_'"
 
-    # Generate the corresponding POST filename
+    # Generate the corresponding MID and POST filenames
+    mid_filename = filename.replace('_PRE_', '_MID_')
     post_filename = filename.replace('_PRE_', '_POST_')
+
+    # Check if the MID file exists
+    if not os.path.exists(mid_filename):
+        return False, f"Corresponding MID file '{mid_filename}' not found"
 
     # Check if the POST file exists
     if not os.path.exists(post_filename):
         return False, f"Corresponding POST file '{post_filename}' not found"
 
-    return True, f"Valid PRE file with corresponding POST file '{post_filename}'"
+    return True, f"Valid PRE file with corresponding MID file '{mid_filename}' and POST file '{post_filename}'"
 
 # Example usage
 if __name__ == "__main__":

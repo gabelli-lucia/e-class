@@ -1,6 +1,6 @@
 # Uso
 
-Questo script elabora file di PRE e POST di E-CLASS.
+Questo script elabora file di PRE, MID e POST di E-CLASS.
 
 ```
 usage: do.py [-h] [--threshold THRESHOLD] [--matricola MATRICOLA] [--lang LANG] input_files [input_files ...]
@@ -8,7 +8,7 @@ usage: do.py [-h] [--threshold THRESHOLD] [--matricola MATRICOLA] [--lang LANG] 
 Process E-CLASS survey data.
 
 positional arguments:
-  input_files           Input PRE file(s). POST files will be derived automatically.
+  input_files           Input PRE file(s). MID and POST files will be derived automatically.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -19,6 +19,8 @@ optional arguments:
   --lang LANG           File language (it, en; default: it)
 
 ```
+
+Nota: Per ogni file PRE specificato, lo script cercherà automaticamente i corrispondenti file MID e POST sostituendo "_PRE_" con "_MID_" e "_POST_" nei nomi dei file.
 
 # Compilare in un eseguibile
 
@@ -41,4 +43,3 @@ Usare in ordine questi script:
 * In qualche modo produciamo il file `Analisi dati.csv`.
 
 * Si esegue `annota_corrispondenze.py`.
-

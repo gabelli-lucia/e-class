@@ -26,9 +26,10 @@ log.basicConfig(level=log.INFO)
 
 
 class PrePost(Enum):
-    """This enum specifies if we're reading a PRE or POST file."""
+    """This enum specifies if we're reading a PRE, MID, or POST file."""
     PRE = 1
-    POST = 2
+    MID = 2
+    POST = 3
 
 
 def read_files(pp, *files):
@@ -214,14 +215,15 @@ def mean_and_sigma_of_columns_by_name(df: pd.DataFrame, sub_column_name: str):
     return round(s.mean(), 2), round(s.std(), 2), round(err, 2)
 
 
-def chart_means(pre, post, filename):
-    """Creates a bar chart comparing pre and post means for 'YOU' and 'Expert' categories.
+def chart_means(pre, mid, post, filename):
+    """Creates a bar chart comparing pre, mid, and post means for 'YOU' and 'Expert' categories.
 
-    This function calculates means, standard deviations, and error values for both
-    pre and post data, then creates a bar chart visualization and saves it to a file.
+    This function calculates means, standard deviations, and error values for
+    pre, mid, and post data, then creates a bar chart visualization and saves it to a file.
 
     Args:
         pre (pandas.DataFrame): DataFrame containing pre-test data
+        mid (pandas.DataFrame): DataFrame containing mid-test data
         post (pandas.DataFrame): DataFrame containing post-test data
         filename (str): Path where the chart image will be saved
 
@@ -231,28 +233,36 @@ def chart_means(pre, post, filename):
 
     mean_pre_tu, sigma_pre_tu, err_pre_tu = mean_and_sigma_of_columns_by_name(pre, conf.COL_TU)
     mean_pre_exp, sigma_pre_exp, err_pre_exp = mean_and_sigma_of_columns_by_name(pre, conf.COL_EXP)
+
+    mean_mid_tu, sigma_mid_tu, err_mid_tu = mean_and_sigma_of_columns_by_name(mid, conf.COL_TU)
+    mean_mid_exp, sigma_mid_exp, err_mid_exp = mean_and_sigma_of_columns_by_name(mid, conf.COL_EXP)
+
     mean_post_tu, sigma_post_tu, err_post_tu = mean_and_sigma_of_columns_by_name(post, conf.COL_TU)
     mean_post_exp, sigma_post_exp, err_post_exp = mean_and_sigma_of_columns_by_name(post, conf.COL_EXP)
 
     log.debug(f"Averages pre:  TU: {mean_pre_tu}, EXP: {mean_pre_exp}")
+    log.debug(f"Averages mid:  TU: {mean_mid_tu}, EXP: {mean_mid_exp}")
     log.debug(f"Averages post: TU: {mean_post_tu}, EXP: {mean_post_exp}")
 
     log.debug(f"Sigmas pre:    TU: {sigma_pre_tu}, EXP: {sigma_pre_exp}")
+    log.debug(f"Sigmas mid:    TU: {sigma_mid_tu}, EXP: {sigma_mid_exp}")
     log.debug(f"Sigmas post:   TU: {sigma_post_tu}, EXP: {sigma_post_exp}")
 
     log.debug(f"Err 95% pre:   TU: {err_pre_tu}, EXP: {err_pre_exp}")
+    log.debug(f"Err 95% mid:   TU: {err_mid_tu}, EXP: {err_mid_exp}")
     log.debug(f"Err 95% post:  TU: {err_post_tu}, EXP: {err_post_exp}")
 
     means = pd.DataFrame(
-        {'pre/post': ['Pre', 'Post'], 'YOU': [mean_pre_tu, mean_post_tu], 'Expert': [mean_pre_exp, mean_post_exp]})
-    # err = pd.DataFrame(
-    #     {'pre/post': ['Pre', 'Post'], 'YOU': [sigma_pre_tu, sigma_post_tu], 'Expert': [sigma_pre_exp, sigma_post_exp]})
-    err = [[err_pre_tu, err_post_tu], [err_pre_exp, err_post_exp]]
+        {'stage': ['Pre', 'Mid', 'Post'], 
+         'YOU': [mean_pre_tu, mean_mid_tu, mean_post_tu], 
+         'Expert': [mean_pre_exp, mean_mid_exp, mean_post_exp]})
 
-    ax = means.plot.bar(x='pre/post', y=['YOU', 'Expert'], rot=0, capsize=4, yerr=err, color=['green', 'red'])
+    err = [[err_pre_tu, err_mid_tu, err_post_tu], [err_pre_exp, err_mid_exp, err_post_exp]]
+
+    ax = means.plot.bar(x='stage', y=['YOU', 'Expert'], rot=0, capsize=4, yerr=err, color=['green', 'red'])
     # Titolo del grafico
     ax.set_title('Overall E-CLASS score on "What do YOU think..."\nand "What do EXPERTS think..." statements')
-    # Cancella il titolo dell'asse X (che sarebbe 'pre/post')
+    # Cancella il titolo dell'asse X (che sarebbe 'stage')
     ax.set_xlabel('')
     # Titolo dell'asse Y
     ax.set_ylabel('Fraction of statements\nwith expert-like response')
@@ -284,51 +294,74 @@ def cohensd(c0, c1):
     return cohens_d
 
 
-def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
-    """Creates a chart showing pre/post comparison with statistical significance indicators.
+def chart_what_do_you_think(pre, mid, post, pre3, mid3, post3, substring, filename):
+    """Creates a chart showing pre/mid/post comparison with statistical significance indicators.
 
-    This function creates a visualization that shows pre and post means for columns containing
+    This function creates a visualization that shows pre, mid, and post means for columns containing
     the specified substring, along with Cohen's d effect size and significance markers (stars)
     for statistically significant changes (p < conf.EFFECT_THRESHOLD).
 
     Args:
         pre (pandas.DataFrame): Original pre-test data
+        mid (pandas.DataFrame): Original mid-test data
         post (pandas.DataFrame): Original post-test data
-        pre2 (pandas.DataFrame): Mapped pre-test data
-        post2 (pandas.DataFrame): Mapped post-test data
+        pre3 (pandas.DataFrame): Mapped pre-test data
+        mid3 (pandas.DataFrame): Mapped mid-test data
+        post3 (pandas.DataFrame): Mapped post-test data
         substring (str): Substring to filter columns (e.g., 'TU' for student columns)
         filename (str): Path where the chart image will be saved
 
     Returns:
         None
     """
-    columns = [c for c in pre2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST) and substring in c]
-    pre2_means = {col_name: pre2[col_name].mean() for col_name in columns}
-    post2_means = {col_name: post2[col_name].mean() for col_name in columns}
-    effect = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
-    log.debug(f"Effect {effect}")
-    cohen = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
-    columns_with_effect = []
-    log.debug(f"Cohen {cohen}")
+    columns = [c for c in pre3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST) and substring in c]
+    pre3_means = {col_name: pre3[col_name].mean() for col_name in columns}
+    mid3_means = {col_name: mid3[col_name].mean() for col_name in columns}
+    post3_means = {col_name: post3[col_name].mean() for col_name in columns}
 
-    # Bisogna azzerare cohen per le colonne che hanno effect > conf.EFFECT_THRESHOLD
+    # Calculate effect sizes and p-values for pre-mid, mid-post, and pre-post
+    effect_pre_mid = {col_name: mannwhitneyu(x=pre[col_name], y=mid[col_name]).pvalue for col_name in columns}
+    effect_mid_post = {col_name: mannwhitneyu(x=mid[col_name], y=post[col_name]).pvalue for col_name in columns}
+    effect_pre_post = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
+
+    log.debug(f"Effect pre-mid: {effect_pre_mid}")
+    log.debug(f"Effect mid-post: {effect_mid_post}")
+    log.debug(f"Effect pre-post: {effect_pre_post}")
+
+    cohen_pre_mid = {col_name: abs(cohensd(pre[col_name], mid[col_name])) for col_name in columns}
+    cohen_mid_post = {col_name: abs(cohensd(mid[col_name], post[col_name])) for col_name in columns}
+    cohen_pre_post = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
+
+    log.debug(f"Cohen pre-mid: {cohen_pre_mid}")
+    log.debug(f"Cohen mid-post: {cohen_mid_post}")
+    log.debug(f"Cohen pre-post: {cohen_pre_post}")
+
+    # We'll use pre-post effect for stars, but could be modified to show all significant changes
+    columns_with_effect = []
+
+    # Zero out cohen values for non-significant changes
     for col_name in columns:
-        if effect[col_name] > conf.EFFECT_THRESHOLD:
-            cohen[col_name] = 0.0
+        if effect_pre_post[col_name] > conf.EFFECT_THRESHOLD:
+            cohen_pre_post[col_name] = 0.0
         else:
             columns_with_effect.append(col_name)
-    stars = {col_name: max(pre2_means[col_name], post2_means[col_name]) + 0.1 for col_name in columns_with_effect}
+
+    # Place stars at the maximum value plus a small offset
+    stars = {col_name: max(pre3_means[col_name], mid3_means[col_name], post3_means[col_name]) + 0.1 
+             for col_name in columns_with_effect}
     log.debug(f"Stars: {stars}")
 
     df2 = (pd.DataFrame({
-        'Pre': pre2_means,
-        'Post': post2_means,
-        # 'Effect': effect,
-        'Cohen': cohen,
+        'Pre': pre3_means,
+        'Mid': mid3_means,
+        'Post': post3_means,
+        'Cohen': cohen_pre_post,  # Using pre-post cohen for the bars
         'Stars': stars})
            .sort_values(by=['Pre']))
 
+    # Plot the data
     ax1 = df2[['Pre']].plot(zorder=0, marker='s', markersize=8, linestyle='dashed')
+    df2[['Mid']].plot(ax=ax1, zorder=1, marker='^', markersize=8, linestyle='dashed')
     df2[['Post']].plot(ax=ax1, zorder=1, marker='o', markersize=8, linestyle='dashed')
     df2[['Stars']].plot(ax=ax1, marker='*', markersize=10, color='black', zorder=2, legend=False, linestyle='none')
     df2[['Cohen']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
@@ -346,7 +379,7 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
     # Titolo dell'asse Y
     ax1.set_ylabel('Average Agreement with Experts')
     # Titolo dell'asse Y secondario
-    ax1.twinx().set_ylabel('Effect Size')
+    ax1.twinx().set_ylabel('Effect Size (Pre-Post)')
     # Griglia con righe solo verticali
     ax1.xaxis.grid(True, linestyle='dashed', linewidth=0.5)
 
@@ -390,7 +423,47 @@ def find_question(i, df: pd.DataFrame):
     return f"Q{i}: {conf.Q[i - 1]}"
 
 
-# Function to draw the plot for each row pair
+def draw_arrow(ax, start_x, end_x, y_position, arrowhead_size, color):
+    """
+    Draw an arrow between two points on the x-axis.
+
+    Parameters:
+    -----------
+    ax : matplotlib.axes.Axes
+        The matplotlib axes object where the arrow will be drawn
+
+    start_x : float
+        The starting x-coordinate of the arrow
+
+    end_x : float
+        The ending x-coordinate of the arrow
+
+    y_position : float
+        The y-coordinate for both start and end points
+
+    arrowhead_size : float
+        The size of the arrowhead
+
+    color : str
+        The color of the arrow
+    """
+    # Calculate arrow length, accounting for the arrowhead
+    if abs(end_x - start_x) >= arrowhead_size:
+        if end_x - start_x >= 0:  # Moving right
+            arrow_length = end_x - start_x - arrowhead_size
+        else:  # Moving left
+            arrow_length = end_x - start_x + arrowhead_size
+    else:  # Very small change, use minimal arrow length
+        arrow_length = 0.000001
+        arrowhead_size = end_x - start_x
+
+    # Draw the arrow
+    ax.arrow(start_x, y_position, arrow_length, 0, 
+             head_width=arrowhead_size, head_length=arrowhead_size, 
+             fc=color, ec=color, zorder=10)
+
+
+# Function to draw the plot for each row triplet
 def draw_plot(ax, top_row, bottom_row, question):
     """
     Draw a comparison plot showing user and expert responses for a single question.
@@ -406,15 +479,17 @@ def draw_plot(ax, top_row, bottom_row, question):
 
     top_row : numpy.ndarray
         Array containing data for the user ("YOU") response:
-        - top_row[0]: Initial position
-        - top_row[1]: Final position
+        - top_row[0]: Initial (PRE) position
+        - top_row[1]: Middle (MID) position
+        - top_row[2]: Final (POST) position
         - top_row[-2]: Lower confidence interval bound
         - top_row[-1]: Upper confidence interval bound
 
     bottom_row : numpy.ndarray
         Array containing data for the expert response:
-        - bottom_row[0]: Initial position
-        - bottom_row[1]: Final position
+        - bottom_row[0]: Initial (PRE) position
+        - bottom_row[1]: Middle (MID) position
+        - bottom_row[2]: Final (POST) position
         - bottom_row[-2]: Lower confidence interval bound
         - bottom_row[-1]: Upper confidence interval bound
 
@@ -427,63 +502,51 @@ def draw_plot(ax, top_row, bottom_row, question):
     bottom_position = 0.25  # Adjust the vertical position of the bottom square
 
     # Draw confidence interval regions as semi-transparent rectangles
-    # For the user (top) response: blue rectangle from lower CI to upper CI
+    # For the user (top) response: green rectangle from lower CI to upper CI
     ax.fill_betweenx([top_position - fill_height / 2, top_position + fill_height / 2], top_row[-2], top_row[-1],
                      color='green', alpha=0.5,
                      edgecolor='none', linewidth=0)
-    # For the expert (bottom) response: green rectangle from lower CI to upper CI
+    # For the expert (bottom) response: red rectangle from lower CI to upper CI
     ax.fill_betweenx([bottom_position - fill_height / 2, bottom_position + fill_height / 2], bottom_row[-2],
                      bottom_row[-1], color='red', alpha=0.5,
                      edgecolor='none', linewidth=0)
 
-    # Draw square representing the user's initial position (blue outline)
-    # This square is positioned at top_row[0] on the x-axis and at top_position on the y-axis
-    square_top = Rectangle((top_row[0] - square_height / 4, top_position - square_height / 2), square_height / 2,
+    # Draw square representing the user's initial (PRE) position (green outline)
+    square_top_pre = Rectangle((top_row[0] - square_height / 4, top_position - square_height / 2), square_height / 2,
                            square_height,
                            edgecolor='green', facecolor='white', label='YOU')
-    ax.add_patch(square_top)
+    ax.add_patch(square_top_pre)
 
-    # Draw square representing the expert's initial position (red outline)
-    # This square is positioned at bottom_row[0] on the x-axis and at bottom_position on the y-axis
-    square_bottom = Rectangle((bottom_row[0] - square_height / 4, bottom_position - square_height / 2),
+    # Draw triangle representing the user's middle (MID) position (green outline)
+    # We'll use a different shape for MID to distinguish it
+    mid_marker_size = square_height / 2
+    ax.scatter(top_row[1], top_position, marker='^', s=mid_marker_size*100, 
+               edgecolor='green', facecolor='white', zorder=5)
+
+    # Draw square representing the expert's initial (PRE) position (red outline)
+    square_bottom_pre = Rectangle((bottom_row[0] - square_height / 4, bottom_position - square_height / 2),
                               square_height / 2, square_height,
                               edgecolor='red', facecolor='white', label='EXPERT')
-    ax.add_patch(square_bottom)
+    ax.add_patch(square_bottom_pre)
+
+    # Draw triangle representing the expert's middle (MID) position (red outline)
+    ax.scatter(bottom_row[1], bottom_position, marker='^', s=mid_marker_size*100, 
+               edgecolor='red', facecolor='white', zorder=5)
 
     # Define the size of arrowheads for the arrows
-    top_arrowhead_size = 0.02
-    bottom_arrowhead_size = 0.02
+    arrowhead_size = 0.02
 
-    # Calculate arrow length for user (top) response
-    # The arrow shows the change from initial position (top_row[0]) to final position (top_row[1])
-    # We need to adjust the arrow length to account for the arrowhead
-    if abs(top_row[1] - top_row[0]) >= top_arrowhead_size:
-        if top_row[1] - top_row[0] >= 0:  # Moving right
-            top_arrow_length = top_row[1] - top_row[0] - top_arrowhead_size
-        else:  # Moving left
-            top_arrow_length = top_row[1] - top_row[0] + top_arrowhead_size
-    else:  # Very small change, use minimal arrow length
-        top_arrow_length = 0.000001
-        top_arrowhead_size = top_row[1] - top_row[0]
+    # Draw arrows for user (top) response - from PRE to MID
+    draw_arrow(ax, top_row[0], top_row[1], top_position, arrowhead_size, 'black')
 
-    # Calculate arrow length for expert (bottom) response
-    # Similar logic as for the user response
-    if abs(bottom_row[1] - bottom_row[0]) >= bottom_arrowhead_size:
-        if bottom_row[1] - bottom_row[0] >= 0:  # Moving right
-            bottom_arrow_length = bottom_row[1] - bottom_row[0] - bottom_arrowhead_size
-        else:  # Moving left
-            bottom_arrow_length = bottom_row[1] - bottom_row[0] + bottom_arrowhead_size
-    else:  # Very small change, use minimal arrow length
-        bottom_arrow_length = 0.0000001
-        bottom_arrowhead_size = bottom_row[1] - bottom_row[0]
+    # Draw arrows for user (top) response - from MID to POST
+    draw_arrow(ax, top_row[1], top_row[2], top_position, arrowhead_size, 'black')
 
-    # Draw the arrow for user (top) response
-    ax.arrow(top_row[0], top_position, top_arrow_length, 0, head_width=top_arrowhead_size,
-             head_length=top_arrowhead_size, fc='black', ec='black', zorder=10)
+    # Draw arrows for expert (bottom) response - from PRE to MID
+    draw_arrow(ax, bottom_row[0], bottom_row[1], bottom_position, arrowhead_size, 'black')
 
-    # Draw the arrow for expert (bottom) response
-    ax.arrow(bottom_row[0], bottom_position, bottom_arrow_length, 0, head_width=bottom_arrowhead_size,
-             head_length=bottom_arrowhead_size, fc='black', ec='black', zorder=10)
+    # Draw arrows for expert (bottom) response - from MID to POST
+    draw_arrow(ax, bottom_row[1], bottom_row[2], bottom_position, arrowhead_size, 'black')
 
     # Set the question text as the y-axis label
     # Position the label in the middle of the y-axis (at 0.5)
@@ -501,15 +564,16 @@ def draw_plot(ax, top_row, bottom_row, question):
     ax.xaxis.grid(True, linestyle='--', alpha=0.7)
 
 
-def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame, filename):
-    """Creates a comprehensive chart comparing pre and post data for all questions.
+def chart_before_after(pre: pd.DataFrame, mid: pd.DataFrame, post: pd.DataFrame, filename):
+    """Creates a comprehensive chart comparing pre, mid, and post data for all questions.
 
-    This function generates a grid of subplots (15 rows, 2 columns) showing the pre and post
+    This function generates a grid of subplots (15 rows, 2 columns) showing the pre, mid, and post
     test results for all questions, sorted by pre-test mean values. Each subplot displays
-    the question text and visualizes the pre/post comparison with error bars.
+    the question text and visualizes the pre/mid/post comparison with error bars.
 
     Args:
         pre (pd.DataFrame): DataFrame containing pre-test data
+        mid (pd.DataFrame): DataFrame containing mid-test data
         post (pd.DataFrame): DataFrame containing post-test data
         filename (str): Path where the chart image will be saved
 
@@ -533,20 +597,31 @@ def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame, filename):
         pre_mean_tu = pre[column_tu].mean()
         pre_std_tu = pre[column_tu].std()
         pre_err_tu = 1.96 * (pre_std_tu / np.sqrt(pre[column_tu].count()))
+
+        mid_mean_tu = mid[column_tu].mean()
+        mid_std_tu = mid[column_tu].std()
+
         post_mean_tu = post[column_tu].mean()
+        post_std_tu = post[column_tu].std()
 
         column_exp = find_column(ii + 1, conf.COL_EXP, pre)
         pre_mean_exp = pre[column_exp].mean()
         pre_std_exp = pre[column_exp].std()
-        post_mean_exp = post[column_exp].mean()
         pre_err_exp = 1.96 * (pre_std_exp / np.sqrt(pre[column_exp].count()))
+
+        mid_mean_exp = mid[column_exp].mean()
+        mid_std_exp = mid[column_exp].std()
+
+        post_mean_exp = post[column_exp].mean()
+        post_std_exp = post[column_exp].std()
+
         question = find_question(ii + 1, post)
 
         if question is not None:
             ax = axes[i // 2, i % 2]
             draw_plot(ax,
-                      [pre_mean_tu, post_mean_tu, pre_mean_tu - pre_err_tu, pre_mean_tu + pre_err_tu],
-                      [pre_mean_exp, post_mean_exp, pre_mean_exp - pre_err_exp, pre_mean_exp + pre_err_exp],
+                      [pre_mean_tu, mid_mean_tu, post_mean_tu, pre_mean_tu - pre_err_tu, pre_mean_tu + pre_err_tu],
+                      [pre_mean_exp, mid_mean_exp, post_mean_exp, pre_mean_exp - pre_err_exp, pre_mean_exp + pre_err_exp],
                       question)
 
         if i % 2 == 1:
@@ -616,35 +691,50 @@ def dump_success(df: pd.DataFrame, filename: str):
                 })
 
 
-def dump_averages(pre, post, filename):
-    """Calculates and exports statistical comparisons between pre and post data to a CSV file.
+def dump_averages(pre, mid, post, filename):
+    """Calculates and exports statistical comparisons between pre, mid, and post data to a CSV file.
 
-    This function computes the average values for pre and post data for each mappable column,
+    This function computes the average values for pre, mid, and post data for each mappable column,
     calculates Mann-Whitney U test p-values and Cohen's d effect sizes for the differences,
     and writes all these statistics to a CSV file.
 
     Args:
         pre (pd.DataFrame): DataFrame containing pre-test data
+        mid (pd.DataFrame): DataFrame containing mid-test data
         post (pd.DataFrame): DataFrame containing post-test data
         filename (str): Path where the CSV file will be saved
 
     Returns:
         None
     """
-    columns = [c for c in pre2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST)]
-    effect = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
-    cohen = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
+    columns = [c for c in pre.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST)]
+    effect_pre_mid = {col_name: mannwhitneyu(x=pre[col_name], y=mid[col_name]).pvalue for col_name in columns}
+    effect_mid_post = {col_name: mannwhitneyu(x=mid[col_name], y=post[col_name]).pvalue for col_name in columns}
+    effect_pre_post = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
+
+    cohen_pre_mid = {col_name: abs(cohensd(pre[col_name], mid[col_name])) for col_name in columns}
+    cohen_mid_post = {col_name: abs(cohensd(mid[col_name], post[col_name])) for col_name in columns}
+    cohen_pre_post = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
+
     with open(filename, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['question', 'pre avg', 'post avg', 'mann-whitney', 'cohen'],
-                                quoting=csv.QUOTE_ALL)
+        writer = csv.DictWriter(csvfile, 
+                               fieldnames=['question', 'pre avg', 'mid avg', 'post avg', 
+                                          'pre-mid mann-whitney', 'mid-post mann-whitney', 'pre-post mann-whitney',
+                                          'pre-mid cohen', 'mid-post cohen', 'pre-post cohen'],
+                               quoting=csv.QUOTE_ALL)
         writer.writeheader()
-        for col_name in [c for c in pre.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST)]:
+        for col_name in columns:
             writer.writerow({
                 'question': col_name,
                 'pre avg': pre[col_name].mean(),
+                'mid avg': mid[col_name].mean(),
                 'post avg': post[col_name].mean(),
-                'mann-whitney': effect[col_name],
-                'cohen': cohen[col_name]
+                'pre-mid mann-whitney': effect_pre_mid[col_name],
+                'mid-post mann-whitney': effect_mid_post[col_name],
+                'pre-post mann-whitney': effect_pre_post[col_name],
+                'pre-mid cohen': cohen_pre_mid[col_name],
+                'mid-post cohen': cohen_mid_post[col_name],
+                'pre-post cohen': cohen_pre_post[col_name]
             })
 
 
@@ -655,7 +745,7 @@ if __name__ == "__main__":
 
     # Create argument parser
     parser = argparse.ArgumentParser(description='Process E-CLASS survey data.')
-    parser.add_argument('input_files', nargs='+', help='Input PRE file(s). POST files will be derived automatically.')
+    parser.add_argument('input_files', nargs='+', help='Input PRE file(s). MID and POST files will be derived automatically.')
     parser.add_argument('--threshold', type=float, default=conf.EFFECT_THRESHOLD,
                         help=f'Effect size threshold (default: {conf.EFFECT_THRESHOLD})')
     parser.add_argument('--matricola', type=str, default=conf.COL_MATRICOLA,
@@ -683,32 +773,56 @@ if __name__ == "__main__":
     # log.info(f"Reading {filenames}")
     pre = read_files(PrePost.PRE, *filenames)
 
-    filenames = list(map(lambda x: x.replace(PrePost.PRE.name, PrePost.POST.name), filenames))
-    # log.info(f"Reading {filenames}")
-    post = read_files(PrePost.POST, *filenames)
+    mid_filenames = list(map(lambda x: x.replace(PrePost.PRE.name, PrePost.MID.name), filenames))
+    # log.info(f"Reading {mid_filenames}")
+    mid = read_files(PrePost.MID, *mid_filenames)
+
+    post_filenames = list(map(lambda x: x.replace(PrePost.PRE.name, PrePost.POST.name), filenames))
+    # log.info(f"Reading {post_filenames}")
+    post = read_files(PrePost.POST, *post_filenames)
 
     log.info("Restoring Matricola")
+    restore_matricola_from_id(pre, mid)
     restore_matricola_from_id(pre, post)
+    restore_matricola_from_id(mid, pre)
+    restore_matricola_from_id(mid, post)
     restore_matricola_from_id(post, pre)
+    restore_matricola_from_id(post, mid)
     populate_matricola_from_id(pre)
+    populate_matricola_from_id(mid)
     populate_matricola_from_id(post)
 
+    # Remove unmatched rows across all three datasets
+    pre = remove_unmatched_rows(pre, mid)
+    mid = remove_unmatched_rows(mid, pre)
     pre = remove_unmatched_rows(pre, post)
     post = remove_unmatched_rows(post, pre)
+    mid = remove_unmatched_rows(mid, post)
+    post = remove_unmatched_rows(post, mid)
+
+    # Final check to ensure all datasets are fully matched
+    pre = remove_unmatched_rows(pre, mid)
     pre = remove_unmatched_rows(pre, post)
+    mid = remove_unmatched_rows(mid, pre)
+    mid = remove_unmatched_rows(mid, post)
     post = remove_unmatched_rows(post, pre)
-    log.info(f"Removing unmatched rows. Survived pre: {len(pre)} post: {len(post)}")
+    post = remove_unmatched_rows(post, mid)
+
+    log.info(f"Removing unmatched rows. Survived pre: {len(pre)}, mid: {len(mid)}, post: {len(post)}")
 
     # TODO se ci sono duplicati, bisogna tranquillamente ignorare quelli che dall'altra parte non ci sono
 
     # Now, IDs are no more needed
     pre.drop([conf.COL_ID], axis=1, inplace=True)
+    mid.drop([conf.COL_ID], axis=1, inplace=True)
     post.drop([conf.COL_ID], axis=1, inplace=True)
     # pre.to_excel(f"pre.xlsx")
     # post.to_excel(f"post.xlsx")
 
     pre2 = clone_and_map(pre, conf.MAPPING2, conf.COL_DONT_MAP_PRE)
     pre3 = clone_and_map(pre, conf.MAPPING3, conf.COL_DONT_MAP_PRE)
+    mid2 = clone_and_map(mid, conf.MAPPING2, conf.COL_DONT_MAP_POST)  # Using POST settings for MID
+    mid3 = clone_and_map(mid, conf.MAPPING3, conf.COL_DONT_MAP_POST)  # Using POST settings for MID
     post2 = clone_and_map(post, conf.MAPPING2, conf.COL_DONT_MAP_POST)
     post3 = clone_and_map(post, conf.MAPPING3, conf.COL_DONT_MAP_POST)
     # pre2.to_excel(f"pre2.xlsx")
@@ -718,11 +832,12 @@ if __name__ == "__main__":
 
     log.info(f"Saving CSV files")
     dump_success(post3, 'out-success.csv')
-    dump_averages(pre2, post2, "out-medie.csv")
+    dump_success(mid3, 'out-success-mid.csv')
+    dump_averages(pre2, mid2, post2, "out-medie.csv")
 
     log.info(f"Saving charts")
-    chart_means(pre2, post2, 'out-chart-means.png')
-    chart_what_do_you_think(pre, post, pre3, post3, conf.COL_TU, 'out-chart-what-do-you-think.png')
-    chart_before_after(pre2, post2, 'out-chart-after-before.png')
+    chart_means(pre2, mid2, post2, 'out-chart-means.png')
+    chart_what_do_you_think(pre, mid, post, pre3, mid3, post3, conf.COL_TU, 'out-chart-what-do-you-think.png')
+    chart_before_after(pre2, mid2, post2, 'out-chart-after-before.png')
 
     log.info("Done.")
