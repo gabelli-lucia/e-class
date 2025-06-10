@@ -15,7 +15,7 @@ import logging as log
 import numpy as np
 import textwrap
 
-from deprecated import utils
+import utils
 import conf
 
 # This is needed to export XLSX files. I do not know why pandas does not import it by itself.
@@ -26,9 +26,10 @@ log.basicConfig(level=log.INFO)
 
 
 class PrePost(Enum):
-    """This enum specifies if we're reading a PRE or POST file."""
+    """This enum specifies if we're reading a PRE, POST, or POSTPOST file."""
     PRE = 1
     POST = 2
+    POSTPOST = 3
 
 
 def read_files(pp, *files):
@@ -214,42 +215,43 @@ def mean_and_sigma_of_columns_by_name(df: pd.DataFrame, sub_column_name: str):
     return round(s.mean(), 2), round(s.std(), 2), round(err, 2)
 
 
-def chart_means(pre, post, filename):
-    """Creates a bar chart comparing pre and post means for 'YOU' and 'Expert' categories.
+def chart_means(first_data, second_data, filename):
+    """Creates a bar chart comparing first and second data means for 'YOU' and 'Expert' categories.
 
     This function calculates means, standard deviations, and error values for both
-    pre and post data, then creates a bar chart visualization and saves it to a file.
+    first and second data, then creates a bar chart visualization and saves it to a file.
 
     Args:
-        pre (pandas.DataFrame): DataFrame containing pre-test data
-        post (pandas.DataFrame): DataFrame containing post-test data
+        first_data (pandas.DataFrame): DataFrame containing first set of data (PRE or POST)
+        second_data (pandas.DataFrame): DataFrame containing second set of data (POST or POSTPOST)
         filename (str): Path where the chart image will be saved
 
     Returns:
         None
     """
 
-    mean_pre_tu, sigma_pre_tu, err_pre_tu = mean_and_sigma_of_columns_by_name(pre, conf.COL_TU)
-    mean_pre_exp, sigma_pre_exp, err_pre_exp = mean_and_sigma_of_columns_by_name(pre, conf.COL_EXP)
-    mean_post_tu, sigma_post_tu, err_post_tu = mean_and_sigma_of_columns_by_name(post, conf.COL_TU)
-    mean_post_exp, sigma_post_exp, err_post_exp = mean_and_sigma_of_columns_by_name(post, conf.COL_EXP)
+    mean_first_tu, sigma_first_tu, err_first_tu = mean_and_sigma_of_columns_by_name(first_data, conf.COL_TU)
+    mean_first_exp, sigma_first_exp, err_first_exp = mean_and_sigma_of_columns_by_name(first_data, conf.COL_EXP)
+    mean_second_tu, sigma_second_tu, err_second_tu = mean_and_sigma_of_columns_by_name(second_data, conf.COL_TU)
+    mean_second_exp, sigma_second_exp, err_second_exp = mean_and_sigma_of_columns_by_name(second_data, conf.COL_EXP)
 
-    log.debug(f"Averages pre:  TU: {mean_pre_tu}, EXP: {mean_pre_exp}")
-    log.debug(f"Averages post: TU: {mean_post_tu}, EXP: {mean_post_exp}")
+    log.debug(f"Averages first:  TU: {mean_first_tu}, EXP: {mean_first_exp}")
+    log.debug(f"Averages second: TU: {mean_second_tu}, EXP: {mean_second_exp}")
 
-    log.debug(f"Sigmas pre:    TU: {sigma_pre_tu}, EXP: {sigma_pre_exp}")
-    log.debug(f"Sigmas post:   TU: {sigma_post_tu}, EXP: {sigma_post_exp}")
+    log.debug(f"Sigmas first:    TU: {sigma_first_tu}, EXP: {sigma_first_exp}")
+    log.debug(f"Sigmas second:   TU: {sigma_second_tu}, EXP: {sigma_second_exp}")
 
-    log.debug(f"Err 95% pre:   TU: {err_pre_tu}, EXP: {err_pre_exp}")
-    log.debug(f"Err 95% post:  TU: {err_post_tu}, EXP: {err_post_exp}")
+    log.debug(f"Err 95% first:   TU: {err_first_tu}, EXP: {err_first_exp}")
+    log.debug(f"Err 95% second:  TU: {err_second_tu}, EXP: {err_second_exp}")
 
     means = pd.DataFrame(
-        {'pre/post': ['Pre', 'Post'], 'YOU': [mean_pre_tu, mean_post_tu], 'Expert': [mean_pre_exp, mean_post_exp]})
+        {'first/second': ['First', 'Second'], 'YOU': [mean_first_tu, mean_second_tu],
+         'Expert': [mean_first_exp, mean_second_exp]})
     # err = pd.DataFrame(
-    #     {'pre/post': ['Pre', 'Post'], 'YOU': [sigma_pre_tu, sigma_post_tu], 'Expert': [sigma_pre_exp, sigma_post_exp]})
-    err = [[err_pre_tu, err_post_tu], [err_pre_exp, err_post_exp]]
+    #     {'first/second': ['First', 'Second'], 'YOU': [sigma_first_tu, sigma_second_tu], 'Expert': [sigma_first_exp, sigma_second_exp]})
+    err = [[err_first_tu, err_second_tu], [err_first_exp, err_second_exp]]
 
-    ax = means.plot.bar(x='pre/post', y=['YOU', 'Expert'], rot=0, capsize=4, yerr=err, color=['green', 'red'])
+    ax = means.plot.bar(x='first/second', y=['YOU', 'Expert'], rot=0, capsize=4, yerr=err, color=['green', 'red'])
     # Titolo del grafico
     ax.set_title('Overall E-CLASS score on "What do YOU think..."\nand "What do EXPERTS think..." statements')
     # Cancella il titolo dell'asse X (che sarebbe 'pre/post')
@@ -284,30 +286,31 @@ def cohensd(c0, c1):
     return cohens_d
 
 
-def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
-    """Creates a chart showing pre/post comparison with statistical significance indicators.
+def chart_what_do_you_think(first_data, second_data, first_data3, second_data3, substring, filename):
+    """Creates a chart showing first/second comparison with statistical significance indicators.
 
-    This function creates a visualization that shows pre and post means for columns containing
+    This function creates a visualization that shows first and second means for columns containing
     the specified substring, along with Cohen's d effect size and significance markers (stars)
     for statistically significant changes (p < conf.EFFECT_THRESHOLD).
 
     Args:
-        pre (pandas.DataFrame): Original pre-test data
-        post (pandas.DataFrame): Original post-test data
-        pre2 (pandas.DataFrame): Mapped pre-test data
-        post2 (pandas.DataFrame): Mapped post-test data
+        first_data (pandas.DataFrame): Original first set of data (PRE or POST)
+        second_data (pandas.DataFrame): Original second set of data (POST or POSTPOST)
+        first_data3 (pandas.DataFrame): Mapped first set of data
+        second_data3 (pandas.DataFrame): Mapped second set of data
         substring (str): Substring to filter columns (e.g., 'TU' for student columns)
         filename (str): Path where the chart image will be saved
 
     Returns:
         None
     """
-    columns = [c for c in pre2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST) and substring in c]
-    pre2_means = {col_name: pre2[col_name].mean() for col_name in columns}
-    post2_means = {col_name: post2[col_name].mean() for col_name in columns}
-    effect = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
+    columns = [c for c in first_data3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP) and substring in c]
+    first_data3_means = {col_name: first_data3[col_name].mean() for col_name in columns}
+    second_data3_means = {col_name: second_data3[col_name].mean() for col_name in columns}
+    effect = {col_name: mannwhitneyu(x=first_data[col_name], y=second_data[col_name], use_continuity=True,
+                                     alternative="two-sided", method="auto").pvalue for col_name in columns}
     log.debug(f"Effect {effect}")
-    cohen = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
+    cohen = {col_name: abs(cohensd(first_data[col_name], second_data[col_name])) for col_name in columns}
     columns_with_effect = []
     log.debug(f"Cohen {cohen}")
 
@@ -317,12 +320,13 @@ def chart_what_do_you_think(pre, post, pre2, post2, substring, filename):
             cohen[col_name] = 0.0
         else:
             columns_with_effect.append(col_name)
-    stars = {col_name: max(pre2_means[col_name], post2_means[col_name]) + 0.1 for col_name in columns_with_effect}
+    stars = {col_name: max(first_data3_means[col_name], second_data3_means[col_name]) + 0.1 for col_name in
+             columns_with_effect}
     log.debug(f"Stars: {stars}")
 
     df2 = (pd.DataFrame({
-        'Pre': pre2_means,
-        'Post': post2_means,
+        'Pre': first_data3_means,
+        'Post': second_data3_means,
         # 'Effect': effect,
         'Cohen': cohen,
         'Stars': stars})
@@ -501,16 +505,16 @@ def draw_plot(ax, top_row, bottom_row, question):
     ax.xaxis.grid(True, linestyle='--', alpha=0.7)
 
 
-def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame, filename):
-    """Creates a comprehensive chart comparing pre and post data for all questions.
+def chart_before_after(first_data: pd.DataFrame, second_data: pd.DataFrame, filename):
+    """Creates a comprehensive chart comparing first and second data for all questions.
 
-    This function generates a grid of subplots (15 rows, 2 columns) showing the pre and post
-    test results for all questions, sorted by pre-test mean values. Each subplot displays
-    the question text and visualizes the pre/post comparison with error bars.
+    This function generates a grid of subplots (15 rows, 2 columns) showing the first and second
+    data results for all questions, sorted by first data mean values. Each subplot displays
+    the question text and visualizes the first/second comparison with error bars.
 
     Args:
-        pre (pd.DataFrame): DataFrame containing pre-test data
-        post (pd.DataFrame): DataFrame containing post-test data
+        first_data (pd.DataFrame): DataFrame containing first set of data (PRE or POST)
+        second_data (pd.DataFrame): DataFrame containing second set of data (POST or POSTPOST)
         filename (str): Path where the chart image will be saved
 
     Returns:
@@ -521,32 +525,32 @@ def chart_before_after(pre: pd.DataFrame, post: pd.DataFrame, filename):
     # This will display all 30 questions in a grid layout
     fig, axes = plt.subplots(15, 2, figsize=(10, 20), sharex=True, gridspec_kw={'width_ratios': [1, 1]})
 
-    sorted_by_pre_mean_tu = np.argsort(list(map(lambda col: col.mean(),
-                                                map(lambda c: pre[c],
-                                                    map(lambda i: find_column(i, conf.COL_TU, pre),
-                                                        range(1, len(conf.Q) + 1))))))
+    sorted_by_first_mean_tu = np.argsort(list(map(lambda col: col.mean(),
+                                                  map(lambda c: first_data[c],
+                                                      map(lambda i: find_column(i, conf.COL_TU, first_data),
+                                                          range(1, len(conf.Q) + 1))))))
 
     i = 0
-    for ii in sorted_by_pre_mean_tu:
+    for ii in sorted_by_first_mean_tu:
         log.debug('Looking for Question %d', ii + 1)
-        column_tu = find_column(ii + 1, conf.COL_TU, pre)
-        pre_mean_tu = pre[column_tu].mean()
-        pre_std_tu = pre[column_tu].std()
-        pre_err_tu = 1.96 * (pre_std_tu / np.sqrt(pre[column_tu].count()))
-        post_mean_tu = post[column_tu].mean()
+        column_tu = find_column(ii + 1, conf.COL_TU, first_data)
+        first_mean_tu = first_data[column_tu].mean()
+        first_std_tu = first_data[column_tu].std()
+        first_err_tu = 1.96 * (first_std_tu / np.sqrt(first_data[column_tu].count()))
+        second_mean_tu = second_data[column_tu].mean()
 
-        column_exp = find_column(ii + 1, conf.COL_EXP, pre)
-        pre_mean_exp = pre[column_exp].mean()
-        pre_std_exp = pre[column_exp].std()
-        post_mean_exp = post[column_exp].mean()
-        pre_err_exp = 1.96 * (pre_std_exp / np.sqrt(pre[column_exp].count()))
-        question = find_question(ii + 1, post)
+        column_exp = find_column(ii + 1, conf.COL_EXP, first_data)
+        first_mean_exp = first_data[column_exp].mean()
+        first_std_exp = first_data[column_exp].std()
+        second_mean_exp = second_data[column_exp].mean()
+        first_err_exp = 1.96 * (first_std_exp / np.sqrt(first_data[column_exp].count()))
+        question = find_question(ii + 1, second_data)
 
         if question is not None:
             ax = axes[i // 2, i % 2]
             draw_plot(ax,
-                      [pre_mean_tu, post_mean_tu, pre_mean_tu - pre_err_tu, pre_mean_tu + pre_err_tu],
-                      [pre_mean_exp, post_mean_exp, pre_mean_exp - pre_err_exp, pre_mean_exp + pre_err_exp],
+                      [first_mean_tu, second_mean_tu, first_mean_tu - first_err_tu, first_mean_tu + first_err_tu],
+                      [first_mean_exp, second_mean_exp, first_mean_exp - first_err_exp, first_mean_exp + first_err_exp],
                       question)
 
         if i % 2 == 1:
@@ -616,33 +620,33 @@ def dump_success(df: pd.DataFrame, filename: str):
                 })
 
 
-def dump_averages(pre, post, filename):
-    """Calculates and exports statistical comparisons between pre and post data to a CSV file.
+def dump_averages(first_data, second_data, filename):
+    """Calculates and exports statistical comparisons between first and second data to a CSV file.
 
-    This function computes the average values for pre and post data for each mappable column,
+    This function computes the average values for first and second data for each mappable column,
     calculates Mann-Whitney U test p-values and Cohen's d effect sizes for the differences,
     and writes all these statistics to a CSV file.
 
     Args:
-        pre (pd.DataFrame): DataFrame containing pre-test data
-        post (pd.DataFrame): DataFrame containing post-test data
+        first_data (pd.DataFrame): DataFrame containing first set of data (PRE or POST)
+        second_data (pd.DataFrame): DataFrame containing second set of data (POST or POSTPOST)
         filename (str): Path where the CSV file will be saved
 
     Returns:
         None
     """
-    columns = [c for c in pre2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST)]
-    effect = {col_name: mannwhitneyu(x=pre[col_name], y=post[col_name]).pvalue for col_name in columns}
-    cohen = {col_name: abs(cohensd(pre[col_name], post[col_name])) for col_name in columns}
+    columns = [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]
+    effect = {col_name: mannwhitneyu(x=first_data[col_name], y=second_data[col_name]).pvalue for col_name in columns}
+    cohen = {col_name: abs(cohensd(first_data[col_name], second_data[col_name])) for col_name in columns}
     with open(filename, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['question', 'pre avg', 'post avg', 'mann-whitney', 'cohen'],
+        writer = csv.DictWriter(csvfile, fieldnames=['question', 'first avg', 'second avg', 'mann-whitney', 'cohen'],
                                 quoting=csv.QUOTE_ALL)
         writer.writeheader()
-        for col_name in [c for c in pre.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP_POST)]:
+        for col_name in [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]:
             writer.writerow({
                 'question': col_name,
-                'pre avg': pre[col_name].mean(),
-                'post avg': post[col_name].mean(),
+                'first avg': first_data[col_name].mean(),
+                'second avg': second_data[col_name].mean(),
                 'mann-whitney': effect[col_name],
                 'cohen': cohen[col_name]
             })
@@ -655,13 +659,17 @@ if __name__ == "__main__":
 
     # Create argument parser
     parser = argparse.ArgumentParser(description='Process E-CLASS survey data.')
-    parser.add_argument('input_files', nargs='+', help='Input PRE file(s). POST files will be derived automatically.')
+    parser.add_argument('input_files', nargs='+',
+                        help='Input files. In PRE-POST mode, these are PRE files and POST files will be derived automatically. '
+                             'In POST-POSTPOST mode, these are POST files and POSTPOST files will be derived automatically.')
     parser.add_argument('--threshold', type=float, default=conf.EFFECT_THRESHOLD,
                         help=f'Effect size threshold (default: {conf.EFFECT_THRESHOLD})')
     parser.add_argument('--matricola', type=str, default=conf.COL_MATRICOLA,
                         help=f'Matricola column name (default: {conf.COL_MATRICOLA})')
     parser.add_argument('--lang', type=str, default="it",
                         help=f'File language (it, en; default: it)')
+    parser.add_argument('--mode', type=str, choices=['pre', 'post'], default='pre',
+                        help='Processing mode: pre (default) or post')
 
     # Parse arguments
     args = parser.parse_args()
@@ -675,54 +683,67 @@ if __name__ == "__main__":
         COL_SUCCESS = " important, "
 
     filenames = args.input_files
+
+    # Determine which mode we're using
+    if args.mode == 'pre':
+        first_type = PrePost.PRE
+        second_type = PrePost.POST
+        log.info("Using PRE-POST mode")
+    else:  # post-postpost mode
+        first_type = PrePost.POST
+        second_type = PrePost.POSTPOST
+        log.info("Using POST-POSTPOST mode")
+
     isvalid, message = utils.verify_pre_post_files(*filenames)
     if not isvalid:
         log.error(message)
         exit(1)
 
     # log.info(f"Reading {filenames}")
-    pre = read_files(PrePost.PRE, *filenames)
+    first_data = read_files(first_type, *filenames)
 
-    filenames = list(map(lambda x: x.replace(PrePost.PRE.name, PrePost.POST.name), filenames))
-    # log.info(f"Reading {filenames}")
-    post = read_files(PrePost.POST, *filenames)
+    second_filenames = list(map(lambda x: x.replace(first_type.name, second_type.name), filenames))
+    # log.info(f"Reading {second_filenames}")
+    second_data = read_files(second_type, *second_filenames)
 
     log.info("Restoring Matricola")
-    restore_matricola_from_id(pre, post)
-    restore_matricola_from_id(post, pre)
-    populate_matricola_from_id(pre)
-    populate_matricola_from_id(post)
+    restore_matricola_from_id(first_data, second_data)
+    restore_matricola_from_id(second_data, first_data)
+    populate_matricola_from_id(first_data)
+    populate_matricola_from_id(second_data)
 
-    pre = remove_unmatched_rows(pre, post)
-    post = remove_unmatched_rows(post, pre)
-    pre = remove_unmatched_rows(pre, post)
-    post = remove_unmatched_rows(post, pre)
-    log.info(f"Removing unmatched rows. Survived pre: {len(pre)} post: {len(post)}")
+    first_data = remove_unmatched_rows(first_data, second_data)
+    second_data = remove_unmatched_rows(second_data, first_data)
+    first_data = remove_unmatched_rows(first_data, second_data)
+    second_data = remove_unmatched_rows(second_data, first_data)
+    log.info(
+        f"Removing unmatched rows. Survived {first_type.name}: {len(first_data)} {second_type.name}: {len(second_data)}")
 
     # TODO se ci sono duplicati, bisogna tranquillamente ignorare quelli che dall'altra parte non ci sono
 
     # Now, IDs are no more needed
-    pre.drop([conf.COL_ID], axis=1, inplace=True)
-    post.drop([conf.COL_ID], axis=1, inplace=True)
-    # pre.to_excel(f"pre.xlsx")
-    # post.to_excel(f"post.xlsx")
+    first_data.drop([conf.COL_ID], axis=1, inplace=True)
+    second_data.drop([conf.COL_ID], axis=1, inplace=True)
+    # first_data.to_excel(f"{first_type.name.lower()}.xlsx")
+    # second_data.to_excel(f"{second_type.name.lower()}.xlsx")
 
-    pre2 = clone_and_map(pre, conf.MAPPING2, conf.COL_DONT_MAP_PRE)
-    pre3 = clone_and_map(pre, conf.MAPPING3, conf.COL_DONT_MAP_PRE)
-    post2 = clone_and_map(post, conf.MAPPING2, conf.COL_DONT_MAP_POST)
-    post3 = clone_and_map(post, conf.MAPPING3, conf.COL_DONT_MAP_POST)
-    # pre2.to_excel(f"pre2.xlsx")
-    # pre3.to_excel(f"pre3.xlsx")
-    # post2.to_excel(f"post2.xlsx")
-    # post3.to_excel(f"post3.xlsx")
+    first_data2 = clone_and_map(first_data, conf.MAPPING2, conf.COL_DONT_MAP)
+    first_data3 = clone_and_map(first_data, conf.MAPPING3, conf.COL_DONT_MAP)
+    second_data2 = clone_and_map(second_data, conf.MAPPING2, conf.COL_DONT_MAP)
+    second_data3 = clone_and_map(second_data, conf.MAPPING3, conf.COL_DONT_MAP)
+    # first_data2.to_excel(f"{first_type.name.lower()}2.xlsx")
+    # first_data3.to_excel(f"{first_type.name.lower()}3.xlsx")
+    # second_data2.to_excel(f"{second_type.name.lower()}2.xlsx")
+    # second_data3.to_excel(f"{second_type.name.lower()}3.xlsx")
 
     log.info(f"Saving CSV files")
-    dump_success(post3, 'out-success.csv')
-    dump_averages(pre2, post2, "out-medie.csv")
+    dump_success(second_data3, 'out-success.csv')
+    dump_averages(first_data2, second_data2, "out-medie.csv")
 
     log.info(f"Saving charts")
-    chart_means(pre2, post2, 'out-chart-means.png')
-    chart_what_do_you_think(pre, post, pre3, post3, conf.COL_TU, 'out-chart-what-do-you-think.png')
-    chart_before_after(pre2, post2, 'out-chart-after-before.png')
+    chart_means(first_data2, second_data2, 'out-chart-means.png')
+    chart_what_do_you_think(first_data, second_data, first_data3, second_data3, conf.COL_TU,
+                            'out-chart-what-do-you-think.png')
+    chart_before_after(first_data2, second_data2, 'out-chart-after-before.png')
 
     log.info("Done.")

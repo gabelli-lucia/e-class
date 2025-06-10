@@ -8,9 +8,8 @@ MAX_POINTS = 6
 # Substrings of columns name that we need to invert (their value well be mapped to MAX_POINTS - value).
 COL_TO_INVERT = ['3', '4', '7', '12', '16', '17', '21', '25', '27', '28', '29']
 
-# These are the columns we should not map to shortest values (pre and post may be different)
-COL_DONT_MAP_PRE = ['Gender', 'Equity', 'Background']
-COL_DONT_MAP_POST = ['Gender', 'Equity', 'Background']
+# These are the columns we should not map to shortest values
+COL_DONT_MAP = ['Gender', 'Equity', 'Background']
 # This is the mapping to two values for grades 1,2,3,4,5
 MAPPING2 = [0, 0, 0, 1, 1]
 # This is the mapping to three values for grades 1,2,3,4,5

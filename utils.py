@@ -56,22 +56,34 @@ def verify_pre_post_files(filename):
             - message (str): A message explaining the validation result
 
     Examples:
-        >>> verify_pre_post_files('../ECLASS_Ita_PRE_FIS2a.csv')
+        >>> verify_pre_post_files('ECLASS_Ita_PRE_FIS2a.csv')
         # If POST file exists: (True, 'Valid PRE file with corresponding POST file')
         # If POST file doesn't exist: (False, 'Corresponding POST file not found')
     """
     # Check if filename contains '_PRE_'
-    if '_PRE_' not in filename:
-        return False, f"Filename '{filename}' does not contain '_PRE_'"
+    if '_PRE_' in filename:
+        if not os.path.exists(filename):
+            return False, f"PRE file '{filename}' not found"
 
-    # Generate the corresponding POST filename
-    post_filename = filename.replace('_PRE_', '_POST_')
+        # Generate the corresponding POST filename
+        post_filename = filename.replace('_PRE_', '_POST_')
 
-    # Check if the POST file exists
-    if not os.path.exists(post_filename):
-        return False, f"Corresponding POST file '{post_filename}' not found"
+        # Check if the POST file exists
+        if not os.path.exists(post_filename):
+            return False, f"Corresponding POST file '{post_filename}' not found"
 
-    return True, f"Valid PRE file with corresponding POST file '{post_filename}'"
+    if '_POST_' in filename:
+        if not os.path.exists(filename):
+            return False, f"POST file '{filename}' not found"
+
+        # Generate the corresponding POST filename
+        post_filename = filename.replace('_POST_', '_POSTPOST_')
+
+        # Check if the POST file exists
+        if not os.path.exists(post_filename):
+            return False, f"Corresponding POSTPOST file '{post_filename}' not found"
+
+    return True, f"'{filename}' and '{post_filename}' exist"
 
 # Example usage
 if __name__ == "__main__":
@@ -82,7 +94,7 @@ if __name__ == "__main__":
     print("New columns:", df_new.columns.tolist())
 
     # Example for verify_pre_post_files
-    test_file = '../ECLASS_Ita_PRE_FIS2a.csv'
+    test_file = 'ECLASS_Ita_PRE_FIS2a.csv'
     is_valid, message = verify_pre_post_files(test_file)
     print(f"\nVerifying file '{test_file}':")
     print(f"Valid: {is_valid}")
