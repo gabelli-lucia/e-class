@@ -1,22 +1,19 @@
-import csv
-import re
 import argparse
+import csv
+import logging as log
+import re
+import textwrap
 from enum import Enum
-from math import sqrt
-from statistics import mean, stdev
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 
-import pandas
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from matplotlib.patches import Rectangle
+from scipy import stats
 from scipy.stats import mannwhitneyu
 
-import pandas as pd
-import logging as log
-import numpy as np
-import textwrap
-
-import utils
 import conf
+import utils
 
 # This is needed to export XLSX files. I do not know why pandas does not import it by itself.
 import openpyxl
@@ -282,11 +279,40 @@ def cohensd(c0, c1):
     Returns:
         float: Cohen's d effect size value
     """
-    cohens_d = (mean(c0) - mean(c1)) / (sqrt((stdev(c0) ** 2 + stdev(c1) ** 2) / 2))
-    return cohens_d
+    # Cohen's D
+    # result = (mean(c0) - mean(c1)) / (sqrt((stdev(c0) ** 2 + stdev(c1) ** 2) / 2))
+
+    # rank-biserial correlation
+    # https://www.numberanalytics.com/blog/master-deep-dive-into-5-biserial-correlation-concepts
+    # Calculate group means:
+    continuous_variable = np.array(c0)
+    binary_variable = np.array(c1)
+
+    m1 = continuous_variable[binary_variable == 1].mean()
+    m0 = continuous_variable[binary_variable == 0].mean()
+
+    # Overall standard deviation:
+    s_y = continuous_variable.std(ddof=1)
+
+    # Proportions:
+    p = np.mean(binary_variable)
+    q = 1 - p
+
+    # Assuming a threshold is applied, compute z-score:
+    # For instance, consider a threshold value T used to determine group membership:
+    T = 1  # define threshold based on context
+    z = (T - continuous_variable.mean()) / s_y
+
+    # Standard normal density at z:
+    phi_z = stats.norm.pdf(z)
+
+    # Compute biserial correlation:
+    result = (m1 - m0) / s_y * (p * q) / phi_z
+
+    return result
 
 
-def chart_what_do_you_think(first_data, second_data, first_data3, second_data3, substring, filename):
+def chart_what_do_you_think(first_data, second_data, first_data_mapped2, second_data_mapped2, substring, filename):
     """Creates a chart showing first/second comparison with statistical significance indicators.
 
     This function creates a visualization that shows first and second means for columns containing
@@ -296,21 +322,22 @@ def chart_what_do_you_think(first_data, second_data, first_data3, second_data3, 
     Args:
         first_data (pandas.DataFrame): Original first set of data (PRE or POST)
         second_data (pandas.DataFrame): Original second set of data (POST or POSTPOST)
-        first_data3 (pandas.DataFrame): Mapped first set of data
-        second_data3 (pandas.DataFrame): Mapped second set of data
+        first_data_mapped2 (pandas.DataFrame): Mapped first set of data
+        second_data_mapped2 (pandas.DataFrame): Mapped second set of data
         substring (str): Substring to filter columns (e.g., 'TU' for student columns)
         filename (str): Path where the chart image will be saved
 
     Returns:
         None
     """
-    columns = [c for c in first_data3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP) and substring in c]
-    first_data3_means = {col_name: first_data3[col_name].mean() for col_name in columns}
-    second_data3_means = {col_name: second_data3[col_name].mean() for col_name in columns}
+    columns = [c for c in first_data_mapped2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP) and substring in c]
+    first_data_mapped2_means = {col_name: first_data_mapped2[col_name].mean() for col_name in columns}
+    second_data_mapped2_means = {col_name: second_data_mapped2[col_name].mean() for col_name in columns}
     effect = {col_name: mannwhitneyu(x=first_data[col_name], y=second_data[col_name], use_continuity=True,
                                      alternative="two-sided", method="auto").pvalue for col_name in columns}
     log.debug(f"Effect {effect}")
-    cohen = {col_name: abs(cohensd(first_data[col_name], second_data[col_name])) for col_name in columns}
+    cohen = {col_name: abs(cohensd(first_data_mapped2[col_name], second_data_mapped2[col_name])) for col_name in
+             columns}
     columns_with_effect = []
     log.debug(f"Cohen {cohen}")
 
@@ -320,13 +347,14 @@ def chart_what_do_you_think(first_data, second_data, first_data3, second_data3, 
             cohen[col_name] = 0.0
         else:
             columns_with_effect.append(col_name)
-    stars = {col_name: max(first_data3_means[col_name], second_data3_means[col_name]) + 0.1 for col_name in
+    stars = {col_name: max(first_data_mapped2_means[col_name], second_data_mapped2_means[col_name]) + 0.1 for col_name
+             in
              columns_with_effect}
     log.debug(f"Stars: {stars}")
 
     df2 = (pd.DataFrame({
-        'Pre': first_data3_means,
-        'Post': second_data3_means,
+        'Pre': first_data_mapped2_means,
+        'Post': second_data_mapped2_means,
         # 'Effect': effect,
         'Cohen': cohen,
         'Stars': stars})
@@ -742,7 +770,7 @@ if __name__ == "__main__":
 
     log.info(f"Saving charts")
     chart_means(first_data2, second_data2, 'out-chart-means.png')
-    chart_what_do_you_think(first_data, second_data, first_data3, second_data3, conf.COL_TU,
+    chart_what_do_you_think(first_data, second_data, first_data2, second_data2, conf.COL_TU,
                             'out-chart-what-do-you-think.png')
     chart_before_after(first_data2, second_data2, 'out-chart-after-before.png')
 
