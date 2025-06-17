@@ -350,7 +350,7 @@ def chart_what_do_you_think(first_data, second_data, first_data3, second_data3, 
     # Titolo dell'asse Y
     ax1.set_ylabel('Average Agreement with Experts')
     # Titolo dell'asse Y secondario
-    ax1.twinx().set_ylabel('Effect Size')
+    ax1.twinx().set_ylabel('Effect Size (Cohen\'s d)')
     # Griglia con righe solo verticali
     ax1.xaxis.grid(True, linestyle='dashed', linewidth=0.5)
 
