@@ -4,6 +4,7 @@ import logging as log
 import re
 import textwrap
 from enum import Enum
+from math import sqrt
 from statistics import mean, stdev
 
 import matplotlib.pyplot as plt
@@ -11,7 +12,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.patches import Rectangle
 from scipy import stats
-from scipy.stats import mannwhitneyu
+from scipy.stats import mannwhitneyu, wilcoxon
 
 import conf
 import utils
@@ -281,7 +282,8 @@ def cohensd(pre_mapped2, post_mapped2):
         float: Cohen's d effect size value
     """
     # Cohen's D
-    result = (mean(pre_mapped2) - mean(post_mapped2)) / (np.sqrt((stdev(pre_mapped2) ** 2 + stdev(post_mapped2) ** 2) / 2))
+    result = (mean(pre_mapped2) - mean(post_mapped2)) / (
+        np.sqrt((stdev(pre_mapped2) ** 2 + stdev(post_mapped2) ** 2) / 2))
 
     # rank-biserial correlation
     # https://www.numberanalytics.com/blog/master-deep-dive-into-5-biserial-correlation-concepts
@@ -315,57 +317,57 @@ def cohensd(pre_mapped2, post_mapped2):
     return result
 
 
-def chart_what_do_you_think(first_data, second_data, first_data_mapped2, second_data_mapped2, substring, filename):
+def chart_what_do_you_think(first_data, second_data, first_data_mapped3, second_data_mapped3, substring, filename):
     """Creates a chart showing first/second comparison with statistical significance indicators.
 
     This function creates a visualization that shows first and second means for columns containing
-    the specified substring, along with Cohen's d effect size and significance markers (stars)
+    the specified substring, along with Cohen's d r size and significance markers (stars)
     for statistically significant changes (p < conf.EFFECT_THRESHOLD).
 
     Args:
         first_data (pandas.DataFrame): Original first set of data (PRE or POST)
         second_data (pandas.DataFrame): Original second set of data (POST or POSTPOST)
-        first_data_mapped2 (pandas.DataFrame): Mapped first set of data
-        second_data_mapped2 (pandas.DataFrame): Mapped second set of data
+        first_data_mapped3 (pandas.DataFrame): Mapped first set of data
+        second_data_mapped3 (pandas.DataFrame): Mapped second set of data
         substring (str): Substring to filter columns (e.g., 'TU' for student columns)
         filename (str): Path where the chart image will be saved
 
     Returns:
         None
     """
-    columns = [c for c in first_data_mapped2.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP) and substring in c]
-    first_data_mapped2_means = {col_name: first_data_mapped2[col_name].mean() for col_name in columns}
-    second_data_mapped2_means = {col_name: second_data_mapped2[col_name].mean() for col_name in columns}
-    effect = {col_name: mannwhitneyu(x=first_data[col_name], y=second_data[col_name], use_continuity=True,
-                                     alternative="two-sided", method="auto").pvalue for col_name in columns}
-    log.debug(f"Effect {effect}")
-    cohen = {col_name: abs(cohensd(first_data_mapped2[col_name], second_data_mapped2[col_name])) for col_name in
-             columns}
-    columns_with_effect = []
-    log.debug(f"Cohen {cohen}")
+    columns = [c for c in first_data_mapped3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP) and substring in c]
+    first_data_mapped3_means = {col_name: first_data_mapped3[col_name].mean() for col_name in columns}
+    second_data_mapped3_means = {col_name: second_data_mapped3[col_name].mean() for col_name in columns}
+    r = {col_name: abs(wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
+                                     zero_method="pratt", alternative="two-sided", method="approx").zstatistic) /
+                        sqrt(first_data_mapped3[col_name].size)
+              for col_name in columns}
+    log.debug(f"Wilcoxon R: {r}")
+    columns_with_r = []
 
-    # Bisogna azzerare cohen per le colonne che hanno effect > conf.EFFECT_THRESHOLD
+    # Bisogna azzerare r per le colonne che hanno r < conf.EFFECT_THRESHOLD
     for col_name in columns:
-        if effect[col_name] > conf.EFFECT_THRESHOLD:
-            cohen[col_name] = 0.0
+        if r[col_name] < conf.EFFECT_THRESHOLD:
+            r[col_name] = 0.0
         else:
-            columns_with_effect.append(col_name)
-    stars = {col_name: max(first_data_mapped2_means[col_name], second_data_mapped2_means[col_name]) + 0.1 for col_name
-             in columns_with_effect}
+            columns_with_r.append(col_name)
+
+    stars = {col_name: max(first_data_mapped3_means[col_name], second_data_mapped3_means[col_name]) + 0.1 for col_name
+             in columns_with_r}
     log.debug(f"Stars: {stars}")
 
     df2 = (pd.DataFrame({
-        'Pre': first_data_mapped2_means,
-        'Post': second_data_mapped2_means,
-        # 'Effect': effect,
-        'Cohen': cohen,
+        'Pre': first_data_mapped3_means,
+        'Post': second_data_mapped3_means,
+        'Effect': r,
+        # 'Cohen': cohen,
         'Stars': stars})
            .sort_values(by=['Pre']))
 
     ax1 = df2[['Pre']].plot(zorder=0, marker='s', markersize=8, linestyle='dashed')
     df2[['Post']].plot(ax=ax1, zorder=1, marker='o', markersize=8, linestyle='dashed')
     df2[['Stars']].plot(ax=ax1, marker='*', markersize=10, color='black', zorder=2, legend=False, linestyle='none')
-    df2[['Cohen']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
+    df2[['Effect']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
                         secondary_y=True, legend=False)
 
     # Titolo del grafico
@@ -380,7 +382,7 @@ def chart_what_do_you_think(first_data, second_data, first_data_mapped2, second_
     # Titolo dell'asse Y
     ax1.set_ylabel('Average Agreement with Experts')
     # Titolo dell'asse Y secondario
-    ax1.twinx().set_ylabel('Effect Size')
+    ax1.twinx().set_ylabel('Effect Size (Wilcoxon r)')
     # Griglia con righe solo verticali
     ax1.xaxis.grid(True, linestyle='dashed', linewidth=0.5)
 
@@ -666,7 +668,7 @@ def dump_averages(first_data, second_data, filename):
         None
     """
     columns = [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]
-    effect = {col_name: mannwhitneyu(x=first_data[col_name], y=second_data[col_name]).pvalue for col_name in columns}
+    effect = {col_name: wilcoxon(x=first_data[col_name], y=second_data[col_name]).pvalue for col_name in columns}
     cohen = {col_name: abs(cohensd(first_data[col_name], second_data[col_name])) for col_name in columns}
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=['question', 'first avg', 'second avg', 'mann-whitney', 'cohen'],
@@ -768,11 +770,11 @@ if __name__ == "__main__":
 
     log.info(f"Saving CSV files")
     dump_success(second_data3, 'out-success.csv')
-    dump_averages(first_data2, second_data2, "out-medie.csv")
+    #    dump_averages(first_data2, second_data2, "out-medie.csv")
 
     log.info(f"Saving charts")
     chart_means(first_data2, second_data2, 'out-chart-means.png')
-    chart_what_do_you_think(first_data, second_data, first_data2, second_data2, conf.COL_TU,
+    chart_what_do_you_think(first_data, second_data, first_data3, second_data3, conf.COL_TU,
                             'out-chart-what-do-you-think.png')
     chart_before_after(first_data2, second_data2, 'out-chart-after-before.png')
 
