@@ -4,6 +4,7 @@ import logging as log
 import re
 import textwrap
 from enum import Enum
+from statistics import mean, stdev
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,7 +20,7 @@ import utils
 import openpyxl
 import matplotlib
 
-log.basicConfig(level=log.INFO)
+log.basicConfig(level=log.DEBUG)
 
 
 class PrePost(Enum):
@@ -266,42 +267,44 @@ def chart_means(first_data, second_data, filename):
     fig.savefig(filename, dpi=200)
 
 
-def cohensd(c0, c1):
+def cohensd(pre_mapped2, post_mapped2):
     """Calculates Cohen's d effect size between two collections of values.
 
     Cohen's d is a standardized measure of effect size, representing the difference
     between two means divided by the pooled standard deviation.
 
     Args:
-        c0 (list or array-like): First collection of numeric values
-        c1 (list or array-like): Second collection of numeric values
+        pre_mapped2 (list or array-like): First collection of numeric values
+        post_mapped2 (list or array-like): Second collection of numeric values
 
     Returns:
         float: Cohen's d effect size value
     """
     # Cohen's D
-    # result = (mean(c0) - mean(c1)) / (sqrt((stdev(c0) ** 2 + stdev(c1) ** 2) / 2))
+    result = (mean(pre_mapped2) - mean(post_mapped2)) / (np.sqrt((stdev(pre_mapped2) ** 2 + stdev(post_mapped2) ** 2) / 2))
 
     # rank-biserial correlation
     # https://www.numberanalytics.com/blog/master-deep-dive-into-5-biserial-correlation-concepts
     # Calculate group means:
-    continuous_variable = np.array(c0)
-    binary_variable = np.array(c1)
+    pre_mapped2 = np.array(pre_mapped2)
+    post_mapped2 = np.array(post_mapped2)
 
-    m1 = continuous_variable[binary_variable == 1].mean()
-    m0 = continuous_variable[binary_variable == 0].mean()
+    m0 = pre_mapped2[post_mapped2 == 0].mean()
+    m1 = pre_mapped2[post_mapped2 == 1].mean()
+    n0 = pre_mapped2[post_mapped2 == 0].size
+    n1 = pre_mapped2[post_mapped2 == 1].size
 
     # Overall standard deviation:
-    s_y = continuous_variable.std(ddof=1)
+    s_y = pre_mapped2.std(ddof=1)
 
     # Proportions:
-    p = np.mean(binary_variable)
+    p = np.mean(post_mapped2)
     q = 1 - p
 
     # Assuming a threshold is applied, compute z-score:
     # For instance, consider a threshold value T used to determine group membership:
     T = 1  # define threshold based on context
-    z = (T - continuous_variable.mean()) / s_y
+    z = (T - pre_mapped2.mean()) / s_y
 
     # Standard normal density at z:
     phi_z = stats.norm.pdf(z)
@@ -348,8 +351,7 @@ def chart_what_do_you_think(first_data, second_data, first_data_mapped2, second_
         else:
             columns_with_effect.append(col_name)
     stars = {col_name: max(first_data_mapped2_means[col_name], second_data_mapped2_means[col_name]) + 0.1 for col_name
-             in
-             columns_with_effect}
+             in columns_with_effect}
     log.debug(f"Stars: {stars}")
 
     df2 = (pd.DataFrame({
