@@ -21,7 +21,7 @@ import utils
 import openpyxl
 import matplotlib
 
-log.basicConfig(level=log.DEBUG)
+log.basicConfig(level=log.INFO)
 
 
 class PrePost(Enum):
@@ -289,28 +289,32 @@ def chart_what_do_you_think(first_data, second_data, first_data_mapped3, second_
     columns = [c for c in first_data_mapped3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP) and substring in c]
     first_data_mapped3_means = {col_name: first_data_mapped3[col_name].mean() for col_name in columns}
     second_data_mapped3_means = {col_name: second_data_mapped3[col_name].mean() for col_name in columns}
-    r = {col_name: abs(wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
+    effect = {col_name: abs(wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
                                      zero_method="pratt", alternative="two-sided", method="approx").zstatistic) /
                         sqrt(first_data_mapped3[col_name].size)
               for col_name in columns}
-    log.debug(f"Wilcoxon R: {r}")
-    columns_with_r = []
+    pvalue = {col_name: abs(wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
+                                     zero_method="pratt", alternative="two-sided", method="approx").pvalue)
+              for col_name in columns}
+    log.debug(f"Wilcoxon R: {effect}")
+    log.debug(f"Wilcoxon pvalue: {pvalue}")
+    columns_with_effect = []
 
-    # Bisogna azzerare r per le colonne che hanno r < conf.EFFECT_THRESHOLD
+    # Bisogna azzerare effect per le colonne che hanno pvalue > conf.EFFECT_THRESHOLD
     for col_name in columns:
-        if r[col_name] < conf.EFFECT_THRESHOLD:
-            r[col_name] = 0.0
+        if pvalue[col_name] > conf.EFFECT_THRESHOLD:
+            effect[col_name] = 0.0
         else:
-            columns_with_r.append(col_name)
+            columns_with_effect.append(col_name)
 
-    stars = {col_name: max(first_data_mapped3_means[col_name], second_data_mapped3_means[col_name]) + 0.1 for col_name
-             in columns_with_r}
+    stars = {col_name: max(first_data_mapped3_means[col_name], second_data_mapped3_means[col_name]) + 0.1
+             for col_name in columns_with_effect}
     log.debug(f"Stars: {stars}")
 
     df2 = (pd.DataFrame({
         'Pre': first_data_mapped3_means,
         'Post': second_data_mapped3_means,
-        'Effect': r,
+        'Effect': effect,
         'Stars': stars})
            .sort_values(by=['Pre']))
 
@@ -318,7 +322,7 @@ def chart_what_do_you_think(first_data, second_data, first_data_mapped3, second_
     df2[['Post']].plot(ax=ax1, zorder=1, marker='o', markersize=8, linestyle='dashed')
     df2[['Stars']].plot(ax=ax1, marker='*', markersize=10, color='black', zorder=2, legend=False, linestyle='none')
     df2[['Effect']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
-                        secondary_y=True, legend=False)
+                         secondary_y=True, legend=False)
 
     # Titolo del grafico
     ax1.set_title('Average score on "What do YOU think" questions')
