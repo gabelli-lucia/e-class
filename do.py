@@ -268,55 +268,6 @@ def chart_means(first_data, second_data, filename):
     fig.savefig(filename, dpi=200)
 
 
-def cohensd(pre_mapped2, post_mapped2):
-    """Calculates Cohen's d effect size between two collections of values.
-
-    Cohen's d is a standardized measure of effect size, representing the difference
-    between two means divided by the pooled standard deviation.
-
-    Args:
-        pre_mapped2 (list or array-like): First collection of numeric values
-        post_mapped2 (list or array-like): Second collection of numeric values
-
-    Returns:
-        float: Cohen's d effect size value
-    """
-    # Cohen's D
-    result = (mean(pre_mapped2) - mean(post_mapped2)) / (
-        np.sqrt((stdev(pre_mapped2) ** 2 + stdev(post_mapped2) ** 2) / 2))
-
-    # rank-biserial correlation
-    # https://www.numberanalytics.com/blog/master-deep-dive-into-5-biserial-correlation-concepts
-    # Calculate group means:
-    pre_mapped2 = np.array(pre_mapped2)
-    post_mapped2 = np.array(post_mapped2)
-
-    m0 = pre_mapped2[post_mapped2 == 0].mean()
-    m1 = pre_mapped2[post_mapped2 == 1].mean()
-    n0 = pre_mapped2[post_mapped2 == 0].size
-    n1 = pre_mapped2[post_mapped2 == 1].size
-
-    # Overall standard deviation:
-    s_y = pre_mapped2.std(ddof=1)
-
-    # Proportions:
-    p = np.mean(post_mapped2)
-    q = 1 - p
-
-    # Assuming a threshold is applied, compute z-score:
-    # For instance, consider a threshold value T used to determine group membership:
-    T = 1  # define threshold based on context
-    z = (T - pre_mapped2.mean()) / s_y
-
-    # Standard normal density at z:
-    phi_z = stats.norm.pdf(z)
-
-    # Compute biserial correlation:
-    result = (m1 - m0) / s_y * (p * q) / phi_z
-
-    return result
-
-
 def chart_what_do_you_think(first_data, second_data, first_data_mapped3, second_data_mapped3, substring, filename):
     """Creates a chart showing first/second comparison with statistical significance indicators.
 
@@ -360,7 +311,6 @@ def chart_what_do_you_think(first_data, second_data, first_data_mapped3, second_
         'Pre': first_data_mapped3_means,
         'Post': second_data_mapped3_means,
         'Effect': r,
-        # 'Cohen': cohen,
         'Stars': stars})
            .sort_values(by=['Pre']))
 
@@ -669,9 +619,8 @@ def dump_averages(first_data, second_data, filename):
     """
     columns = [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]
     effect = {col_name: wilcoxon(x=first_data[col_name], y=second_data[col_name]).pvalue for col_name in columns}
-    cohen = {col_name: abs(cohensd(first_data[col_name], second_data[col_name])) for col_name in columns}
     with open(filename, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['question', 'first avg', 'second avg', 'mann-whitney', 'cohen'],
+        writer = csv.DictWriter(csvfile, fieldnames=['question', 'first avg', 'second avg', 'mann-whitney'],
                                 quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for col_name in [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]:
@@ -679,8 +628,7 @@ def dump_averages(first_data, second_data, filename):
                 'question': col_name,
                 'first avg': first_data[col_name].mean(),
                 'second avg': second_data[col_name].mean(),
-                'mann-whitney': effect[col_name],
-                'cohen': cohen[col_name]
+                'mann-whitney': effect[col_name]
             })
 
 
