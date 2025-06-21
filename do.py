@@ -57,6 +57,10 @@ def read_files(pp, *files):
     df = utils.remove_prefix_from_columns(df)
     log.debug(f"Current columns: {df.columns}")
 
+    # If the Matricola column is missing, let's add it
+    if conf.COL_MATRICOLA not in df.columns:
+        df[conf.COL_MATRICOLA] = ""
+
     # Removing unuseful columns
     df.drop(conf.COL_TO_DROP, axis=1, inplace=True)
 
