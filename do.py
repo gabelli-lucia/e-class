@@ -48,7 +48,7 @@ def read_files(pp, *files):
     df = pd.DataFrame()
 
     for file in files:
-        df = pd.concat([df, pd.read_csv(file, skiprows=0 if file == files[0] else 1)])
+        df = pd.concat([df, pd.read_csv(file, delimiter=conf.DELIMITER, skiprows=0 if file == files[0] else 1)])
         log.info(f"{pp.name}: Reading {file}: {len(df)} rows")
     log.debug(f"{pp.name}: Read shape {df.shape}")
 
@@ -62,7 +62,7 @@ def read_files(pp, *files):
         df[conf.COL_MATRICOLA] = ""
 
     # Removing unuseful columns
-    df.drop(conf.COL_TO_DROP, axis=1, inplace=True)
+    # df.drop(conf.COL_TO_DROP, axis=1, inplace=True)
 
     # Identifying the CHECK columns
     check_columns = [col for col in df.columns if conf.COL_CHECK in col]
@@ -658,9 +658,14 @@ if __name__ == "__main__":
                         help=f'File language (it, en; default: it)')
     parser.add_argument('--mode', type=str, choices=['pre', 'post'], default='pre',
                         help='Processing mode: pre (default) or post')
+    parser.add_argument('--delimiter', type=str, choices=['semicolon', 'comma'], default='comma',
+                        help='CSV field delimiter: semicolon or comma (default)')
 
     # Parse arguments
     args = parser.parse_args()
+
+    if args.delimiter == 'semicolon':
+        conf.DELIMITER = ';'
 
     # Set the effect threshold from arguments
     conf.EFFECT_THRESHOLD = args.threshold

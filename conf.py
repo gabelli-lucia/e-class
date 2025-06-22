@@ -1,3 +1,6 @@
+# The default delimiter for CSV files
+DELIMITER=","
+
 COL_CHECK = 'CHECK'
 COL_ID = 'ID-1'
 COL_MATRICOLA = 'Matricola'
