@@ -5,14 +5,12 @@ import re
 import textwrap
 from enum import Enum
 from math import sqrt
-from statistics import mean, stdev
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.patches import Rectangle
-from scipy import stats
-from scipy.stats import mannwhitneyu, wilcoxon
+from scipy.stats import wilcoxon
 
 import conf
 import utils
@@ -614,8 +612,7 @@ def dump_averages(first_data, second_data, filename):
     """Calculates and exports statistical comparisons between first and second data to a CSV file.
 
     This function computes the average values for first and second data for each mappable column,
-    calculates Mann-Whitney U test p-values and Cohen's d effect sizes for the differences,
-    and writes all these statistics to a CSV file.
+    calculates Wilcoxon p-values for the differences, and writes all these statistics to a CSV file.
 
     Args:
         first_data (pd.DataFrame): DataFrame containing first set of data (PRE or POST)
@@ -626,9 +623,14 @@ def dump_averages(first_data, second_data, filename):
         None
     """
     columns = [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]
-    effect = {col_name: wilcoxon(x=first_data[col_name], y=second_data[col_name]).pvalue for col_name in columns}
+    effect = {col_name: abs(wilcoxon(x=first_data[col_name], y=second_data[col_name], zero_method="pratt",
+                                     alternative="two-sided", method="approx").zstatistic) /
+                        sqrt(first_data[col_name].size)
+              for col_name in columns}
+    pvalue = {col_name: wilcoxon(x=first_data[col_name], y=second_data[col_name]).pvalue for col_name in columns}
     with open(filename, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['question', 'first avg', 'second avg', 'mann-whitney'],
+        writer = csv.DictWriter(csvfile,
+                                fieldnames=['question', 'first avg', 'second avg', 'wilcoxon p-value', 'effect size'],
                                 quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for col_name in [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]:
@@ -636,7 +638,8 @@ def dump_averages(first_data, second_data, filename):
                 'question': col_name,
                 'first avg': first_data[col_name].mean(),
                 'second avg': second_data[col_name].mean(),
-                'mann-whitney': effect[col_name]
+                'wilcoxon p-value': pvalue[col_name],
+                'effect size': effect[col_name]
             })
 
 
@@ -731,7 +734,7 @@ if __name__ == "__main__":
 
     log.info(f"Saving CSV files")
     dump_success(second_data3, 'out-success.csv')
-    #    dump_averages(first_data2, second_data2, "out-medie.csv")
+    dump_averages(first_data2, second_data2, "out-medie.csv")
 
     log.info(f"Saving charts")
     chart_means(first_data2, second_data2, 'out-chart-means.png')
