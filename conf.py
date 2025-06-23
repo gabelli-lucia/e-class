@@ -25,7 +25,7 @@ COL_TU = " TU "
 # Substrings of the tile of columns that are about experts
 COL_EXP = " fisici "
 # Substring of the tile of columns that are about success.
-COL_SUCCESS = " importante, "
+COL_SUCCESS = " importante "
 
 # This is the full list of the questions.
 Q = [
