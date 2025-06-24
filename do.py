@@ -1,6 +1,7 @@
 import argparse
 import csv
 import logging as log
+import os
 import re
 import textwrap
 from enum import Enum
@@ -13,7 +14,6 @@ from matplotlib.patches import Rectangle
 from scipy.stats import wilcoxon
 
 import conf
-import utils
 
 # This is needed to export XLSX files. I do not know why pandas does not import it by itself.
 import openpyxl
@@ -52,7 +52,7 @@ def read_files(pp, *files):
 
     log.debug(f"Found columns: {df.columns}")
     log.debug("Removing _ prefixes from column names")
-    df = utils.remove_prefix_from_columns(df)
+    df = remove_prefix_from_columns(df)
     log.debug(f"Current columns: {df.columns}")
 
     # If the Matricola column is missing, let's add it
@@ -268,6 +268,104 @@ def chart_means(first_data, second_data, filename):
 
     fig = ax.get_figure()
     fig.savefig(filename, dpi=200)
+
+
+def remove_prefix_from_columns(df, separator='_'):
+    """
+    Removes text before the specified separator character in all column names of a pandas DataFrame.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame whose column names will be modified
+        separator (str, optional): Character that separates prefix from the rest of the column name.
+                                  Default is '_'.
+
+    Returns:
+        pandas.DataFrame: A DataFrame with modified column names (original DataFrame is not modified)
+
+    Examples:
+        # >>> import pandas as pd
+        # >>> df = pd.DataFrame(columns=['Q01_ID', 'Q02_Name', 'Q03_Age'])
+        # >>> remove_prefix_from_columns(df)
+        # Returns DataFrame with columns ['ID', 'Name', 'Age']
+    """
+    # Create a copy of the DataFrame to avoid modifying the original
+    result = df.copy()
+
+    # Create a dictionary mapping old column names to new column names
+    new_columns = {}
+    for col in result.columns:
+        if separator in col:
+            # Split the column name at the first occurrence of the separator
+            # and take the part after the separator
+            new_columns[col] = col.split(separator, 1)[1]
+        else:
+            # If the separator is not in the column name, keep it as is
+            new_columns[col] = col
+
+    # Rename the columns
+    result.rename(columns=new_columns, inplace=True)
+
+    return result
+
+
+def verify_pre_post_files(filename):
+    """
+    Verifies that the filename contains '_PRE_' and that a corresponding file
+    with '_POST_' instead of '_PRE_' exists.
+
+    Args:
+        filename (str): The filename to verify
+
+    Returns:
+        tuple: A tuple containing (is_valid, message)
+            - is_valid (bool): True if the filename contains '_PRE_' and the corresponding '_POST_' file exists
+            - message (str): A message explaining the validation result
+
+    Examples:
+        # >>> verify_pre_post_files('ECLASS_Ita_PRE_FIS2a.csv')
+        # If POST file exists: (True, 'Valid PRE file with corresponding POST file')
+        # If POST file doesn't exist: (False, 'Corresponding POST file not found')
+    """
+    # Check if filename contains '_PRE_'
+    if '_PRE_' in filename:
+        if not os.path.exists(filename):
+            return False, f"PRE file '{filename}' not found"
+
+        # Generate the corresponding POST filename
+        post_filename = filename.replace('_PRE_', '_POST_')
+
+        # Check if the POST file exists
+        if not os.path.exists(post_filename):
+            return False, f"Corresponding POST file '{post_filename}' not found"
+
+    if '_POST_' in filename:
+        if not os.path.exists(filename):
+            return False, f"POST file '{filename}' not found"
+
+        # Generate the corresponding POST filename
+        post_filename = filename.replace('_POST_', '_POSTPOST_')
+
+        # Check if the POST file exists
+        if not os.path.exists(post_filename):
+            return False, f"Corresponding POSTPOST file '{post_filename}' not found"
+
+    return True, f"'{filename}' and '{post_filename}' exist"
+
+
+# Example usage
+if __name__ == "__main__":
+    # Example for remove_prefix_from_columns
+    df = pd.DataFrame(columns=['Q01_ID', 'Q02_Name', 'Q03_Age', 'Other_Column'])
+    df_new = remove_prefix_from_columns(df)
+    print("Original columns:", df.columns.tolist())
+    print("New columns:", df_new.columns.tolist())
+
+    # Example for verify_pre_post_files
+    test_file = 'ECLASS_Ita_PRE_FIS2a.csv'
+    is_valid, message = verify_pre_post_files(test_file)
+    print(f"\nVerifying file '{test_file}':")
+    print(f"Valid: {is_valid}")
+    print(f"Message: {message}")
 
 
 def chart_what_do_you_think(first_data, second_data, first_data_mapped3, second_data_mapped3, substring, filename):
@@ -690,7 +788,7 @@ if __name__ == "__main__":
         second_type = PrePost.POSTPOST
         log.info("Using POST-POSTPOST mode")
 
-    isvalid, message = utils.verify_pre_post_files(*filenames)
+    isvalid, message = verify_pre_post_files(*filenames)
     if not isvalid:
         log.error(message)
         exit(1)
