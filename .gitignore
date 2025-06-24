@@ -1,6 +1,7 @@
 /*.txt
 /*.csv
 /*.xlsx
+/*.zip
 .DS_Store
 /*.png
 /build
