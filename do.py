@@ -19,7 +19,7 @@ import conf
 import openpyxl
 import matplotlib
 
-log.basicConfig(level=log.INFO)
+log.basicConfig(level=log.DEBUG)
 
 
 class PrePost(Enum):
@@ -246,7 +246,7 @@ def chart_means(first_data, second_data, filename):
     log.debug(f"Err 95% second:  TU: {err_second_tu}, EXP: {err_second_exp}")
 
     means = pd.DataFrame(
-        {'first/second': ['First', 'Second'], 'YOU': [mean_first_tu, mean_second_tu],
+        {'first/second': ['PRE', 'POST'], 'YOU': [mean_first_tu, mean_second_tu],
          'Expert': [mean_first_exp, mean_second_exp]})
     # err = pd.DataFrame(
     #     {'first/second': ['First', 'Second'], 'YOU': [sigma_first_tu, sigma_second_tu], 'Expert': [sigma_first_exp, sigma_second_exp]})
@@ -721,11 +721,18 @@ def dump_averages(first_data, second_data, filename):
         None
     """
     columns = [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]
-    effect = {col_name: abs(wilcoxon(x=first_data[col_name], y=second_data[col_name], zero_method="pratt",
-                                     alternative="two-sided", method="approx").zstatistic) /
-                        sqrt(first_data[col_name].size)
-              for col_name in columns}
-    pvalue = {col_name: wilcoxon(x=first_data[col_name], y=second_data[col_name]).pvalue for col_name in columns}
+    effect = {}
+    pvalue = {}
+    for col_name in columns:
+        try:
+            w_test = wilcoxon(x=first_data[col_name], y=second_data[col_name],
+                              zero_method="pratt", alternative="two-sided", method="approx")
+            effect[col_name] = abs(w_test.statistic) / sqrt(first_data[col_name].size)
+            pvalue[col_name] = w_test.pvalue
+        except ValueError:
+            log.warning(f"Wilcoxon test failed for column {col_name}")
+            effect[col_name] = 0.0
+            pvalue[col_name] = 1.0
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile,
                                 fieldnames=['question', 'first avg', 'second avg', 'wilcoxon p-value', 'effect size'],
