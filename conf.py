@@ -18,7 +18,7 @@ MAPPING2 = [0, 0, 0, 1, 1]
 # This is the mapping to three values for grades 1,2,3,4,5
 MAPPING3 = [-1, -1, 0, 1, 1]
 # Threshold of the effect size.
-EFFECT_THRESHOLD = 0.05
+PVALUE_THRESHOLD = 0.05
 
 # Substrings of the tile of columns that are about yourself
 COL_TU = " TU "

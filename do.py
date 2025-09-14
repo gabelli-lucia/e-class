@@ -368,7 +368,7 @@ if __name__ == "__main__":
     print(f"Message: {message}")
 
 
-def chart_what_do_you_think(first_data, second_data, first_data_mapped3, second_data_mapped3, substring, filename):
+def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, filename):
     """Creates a chart showing first/second comparison with statistical significance indicators.
 
     This function creates a visualization that shows first and second means for columns containing
@@ -405,9 +405,9 @@ def chart_what_do_you_think(first_data, second_data, first_data_mapped3, second_
     log.debug(f"Wilcoxon pvalue: {pvalue}")
     columns_with_effect = []
 
-    # Bisogna azzerare effect per le colonne che hanno pvalue > conf.EFFECT_THRESHOLD
+    # Bisogna azzerare effect per le colonne che hanno pvalue > conf.PVALUE_THRESHOLD
     for col_name in columns:
-        if pvalue[col_name] > conf.EFFECT_THRESHOLD:
+        if pvalue[col_name] > conf.PVALUE_THRESHOLD:
             effect[col_name] = 0.0
         else:
             columns_with_effect.append(col_name)
@@ -732,8 +732,8 @@ def dump_averages(first_data, second_data, filename):
         try:
             w_test = wilcoxon(x=first_data[col_name], y=second_data[col_name],
                               zero_method="pratt", alternative="two-sided", method="approx")
-            effect[col_name] = abs(w_test.statistic) / sqrt(first_data[col_name].size)
-            pvalue[col_name] = w_test.pvalue
+            effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data[col_name].size)
+            pvalue[col_name] = abs(w_test.pvalue)
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
             effect[col_name] = 0.0
@@ -763,8 +763,8 @@ if __name__ == "__main__":
     parser.add_argument('input_files', nargs='+',
                         help='Input files. In PRE-POST mode, these are PRE files and POST files will be derived automatically. '
                              'In POST-POSTPOST mode, these are POST files and POSTPOST files will be derived automatically.')
-    parser.add_argument('--threshold', type=float, default=conf.EFFECT_THRESHOLD,
-                        help=f'Effect size threshold (default: {conf.EFFECT_THRESHOLD})')
+    parser.add_argument('--threshold', type=float, default=conf.PVALUE_THRESHOLD,
+                        help=f'p-value threshold over which the effect is zeroed (default: {conf.PVALUE_THRESHOLD})')
     parser.add_argument('--matricola', type=str, default=conf.COL_MATRICOLA,
                         help=f'Matricola column name (default: {conf.COL_MATRICOLA})')
     parser.add_argument('--lang', type=str, default="it",
@@ -781,7 +781,7 @@ if __name__ == "__main__":
         conf.DELIMITER = ';'
 
     # Set the effect threshold from arguments
-    conf.EFFECT_THRESHOLD = args.threshold
+    conf.PVALUE_THRESHOLD = args.threshold
     conf.COL_MATRICOLA = args.matricola
     if args.lang == 'en':
         conf.COL_TU = " YOU "
@@ -848,7 +848,7 @@ if __name__ == "__main__":
 
     log.info(f"Saving charts")
     chart_means(first_data2, second_data2, 'out-chart-means.png')
-    chart_what_do_you_think(first_data, second_data, first_data3, second_data3, conf.COL_TU,
+    chart_what_do_you_think(first_data3, second_data3, conf.COL_TU,
                             'out-chart-what-do-you-think.png')
     chart_before_after(first_data2, second_data2, 'out-chart-after-before.png')
 
