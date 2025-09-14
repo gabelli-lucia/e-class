@@ -389,13 +389,18 @@ def chart_what_do_you_think(first_data, second_data, first_data_mapped3, second_
     columns = [c for c in first_data_mapped3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP) and substring in c]
     first_data_mapped3_means = {col_name: first_data_mapped3[col_name].mean() for col_name in columns}
     second_data_mapped3_means = {col_name: second_data_mapped3[col_name].mean() for col_name in columns}
-    effect = {col_name: abs(wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
-                                     zero_method="pratt", alternative="two-sided", method="approx").zstatistic) /
-                        sqrt(first_data_mapped3[col_name].size)
-              for col_name in columns}
-    pvalue = {col_name: abs(wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
-                                     zero_method="pratt", alternative="two-sided", method="approx").pvalue)
-              for col_name in columns}
+    effect = {}
+    pvalue = {}
+    for col_name in columns:
+        try:
+            w_test = wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
+                              zero_method="pratt", alternative="two-sided", method="approx")
+            effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data_mapped3[col_name].size)
+            pvalue[col_name] = abs(w_test.pvalue)
+        except ValueError:
+            log.warning(f"Wilcoxon test failed for column {col_name}")
+            effect[col_name] = 0.0
+            pvalue[col_name] = 1.0
     log.debug(f"Wilcoxon R: {effect}")
     log.debug(f"Wilcoxon pvalue: {pvalue}")
     columns_with_effect = []
@@ -779,9 +784,9 @@ if __name__ == "__main__":
     conf.EFFECT_THRESHOLD = args.threshold
     conf.COL_MATRICOLA = args.matricola
     if args.lang == 'en':
-        COL_TU = " YOU "
-        COL_EXP = " experts "
-        COL_SUCCESS = " important, "
+        conf.COL_TU = " YOU "
+        conf.COL_EXP = " experts "
+        conf.COL_SUCCESS = " important, "
 
     filenames = args.input_files
 
