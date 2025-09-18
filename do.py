@@ -728,19 +728,23 @@ def dump_averages(first_data, second_data, filename):
     columns = [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]
     effect = {}
     pvalue = {}
+    z = {}
     for col_name in columns:
         try:
             w_test = wilcoxon(x=first_data[col_name], y=second_data[col_name],
                               zero_method="pratt", alternative="two-sided", method="approx")
             effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data[col_name].size)
             pvalue[col_name] = abs(w_test.pvalue)
+            z[col_name] = abs(w_test.zstatistic)
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
             effect[col_name] = 0.0
             pvalue[col_name] = 1.0
+            z[col_name] = 0.0
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile,
-                                fieldnames=['question', 'first avg', 'second avg', 'wilcoxon p-value', 'effect size'],
+                                fieldnames=['question', 'first avg', 'second avg', 'wilcoxon p-value', 'effect size',
+                                            'z'],
                                 quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for col_name in [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]:
@@ -749,7 +753,8 @@ def dump_averages(first_data, second_data, filename):
                 'first avg': first_data[col_name].mean(),
                 'second avg': second_data[col_name].mean(),
                 'wilcoxon p-value': pvalue[col_name],
-                'effect size': effect[col_name]
+                'effect size': effect[col_name],
+                'z': z[col_name]
             })
 
 
