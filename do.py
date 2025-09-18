@@ -849,7 +849,7 @@ if __name__ == "__main__":
 
     log.info(f"Saving CSV files")
     dump_success(second_data3, 'out-success.csv')
-    dump_averages(first_data2, second_data2, "out-medie.csv")
+    dump_averages(first_data3, second_data3, "out-medie.csv")
 
     log.info(f"Saving charts")
     chart_means(first_data2, second_data2, 'out-chart-means.png')
