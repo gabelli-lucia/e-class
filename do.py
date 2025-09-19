@@ -728,23 +728,26 @@ def dump_averages(first_data, second_data, filename):
     columns = [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]
     effect = {}
     pvalue = {}
+    statistic = {}
     z = {}
     for col_name in columns:
         try:
             w_test = wilcoxon(x=first_data[col_name], y=second_data[col_name],
-                              zero_method="pratt", alternative="two-sided", method="approx")
-            effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data[col_name].size)
+                              zero_method="wilcox", alternative="two-sided", method="approx", correction=False)
+            effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data[col_name].size * 2)
             pvalue[col_name] = abs(w_test.pvalue)
-            z[col_name] = abs(w_test.zstatistic)
+            z[col_name] = w_test.zstatistic
+            statistic[col_name] = abs(w_test.statistic)
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
             effect[col_name] = 0.0
             pvalue[col_name] = 1.0
             z[col_name] = 0.0
+            statistic[col_name] = 0.0
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile,
-                                fieldnames=['question', 'first avg', 'second avg', 'wilcoxon p-value', 'effect size',
-                                            'z'],
+                                fieldnames=['question', 'first avg', 'second avg', 'statistic', 'z',
+                                            'wilcoxon p-value', 'effect size'],
                                 quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for col_name in [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]:
@@ -754,7 +757,8 @@ def dump_averages(first_data, second_data, filename):
                 'second avg': second_data[col_name].mean(),
                 'wilcoxon p-value': pvalue[col_name],
                 'effect size': effect[col_name],
-                'z': z[col_name]
+                'z': z[col_name],
+                'statistic': statistic[col_name]
             })
 
 
