@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.patches import Rectangle
 from scipy.stats import wilcoxon
+from cliffs_delta import cliffs_delta
 
 import conf
 
@@ -376,6 +377,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     effect = {}
     pvalue = {}
     differences = {}
+    cliff = {}
 
     for col_name in columns:
         try:
@@ -385,14 +387,17 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
 
             w_test = wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
                               zero_method="wilcox", alternative="two-sided", method="approx", correction=True)
+            cliff[col_name] = abs(cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[0])
             effect[col_name] = abs(w_test.zstatistic) / sqrt(differences[col_name].size)
             pvalue[col_name] = abs(w_test.pvalue)
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
+            cliff[col_name] = 0.0
             effect[col_name] = 0.0
             pvalue[col_name] = 1.0
             differences[col_name] = 0
     log.debug(f"Wilcoxon R: {effect}")
+    log.debug(f"Cliffs Delta: {cliff}")
     log.debug(f"Wilcoxon pvalue: {pvalue}")
     log.debug(f"Number of differences: {differences}")
     columns_with_effect = []
@@ -401,6 +406,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     for col_name in columns:
         if pvalue[col_name] > conf.PVALUE_THRESHOLD:
             effect[col_name] = 0.0
+            cliff[col_name] = 0.0
         else:
             columns_with_effect.append(col_name)
 
@@ -412,13 +418,16 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
         'Pre': first_data_mapped3_means,
         'Post': second_data_mapped3_means,
         'Effect': effect,
+        'Cliff': cliff,
         'Stars': stars})
            .sort_values(by=['Pre']))
 
     ax1 = df2[['Pre']].plot(zorder=0, marker='s', markersize=8, linestyle='dashed')
     df2[['Post']].plot(ax=ax1, zorder=1, marker='o', markersize=8, linestyle='dashed')
     df2[['Stars']].plot(ax=ax1, marker='*', markersize=10, color='black', zorder=2, legend=False, linestyle='none')
-    df2[['Effect']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
+    # df2[['Effect']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
+    #                      secondary_y=True, legend=False)
+    df2[['Cliff']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
                          secondary_y=True, legend=False)
 
     # Titolo del grafico
@@ -433,7 +442,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     # Titolo dell'asse Y
     ax1.set_ylabel('Average Agreement with Experts')
     # Titolo dell'asse Y secondario
-    ax1.twinx().set_ylabel('Effect Size (Wilcoxon r)')
+    ax1.twinx().set_ylabel('Effect Size (Wilcoxon Cliff Delta)')
     # Griglia con righe solo verticali
     ax1.xaxis.grid(True, linestyle='dashed', linewidth=0.5)
 
@@ -703,52 +712,62 @@ def dump_success(df: pd.DataFrame, filename: str):
                 })
 
 
-def dump_averages(first_data, second_data, filename):
+def dump_averages(first_data_mapped3, second_data_mapped3, filename):
     """Calculates and exports statistical comparisons between first and second data to a CSV file.
 
     This function computes the average values for first and second data for each mappable column,
     calculates Wilcoxon p-values for the differences, and writes all these statistics to a CSV file.
 
     Args:
-        first_data (pd.DataFrame): DataFrame containing first set of data (PRE or POST)
-        second_data (pd.DataFrame): DataFrame containing second set of data (POST or POSTPOST)
+        first_data_mapped3 (pd.DataFrame): DataFrame containing first set of data (PRE or POST)
+        second_data_mapped3 (pd.DataFrame): DataFrame containing second set of data (POST or POSTPOST)
         filename (str): Path where the CSV file will be saved
 
     Returns:
         None
     """
-    columns = [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]
+    columns = [c for c in first_data_mapped3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]
     effect = {}
     pvalue = {}
+    differences = {}
+    cliff = {}
     statistic = {}
     z = {}
     for col_name in columns:
         try:
-            w_test = wilcoxon(x=first_data[col_name], y=second_data[col_name],
-                              zero_method="wilcox", alternative="two-sided", method="approx", correction=False)
-            effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data[col_name].size * 2)
+            # Use .values to avoid alignment errors if indices differ
+            diff_mask = first_data_mapped3[col_name].values != second_data_mapped3[col_name].values
+            differences[col_name] = diff_mask.sum()
+
+            w_test = wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
+                              zero_method="wilcox", alternative="two-sided", method="approx", correction=True)
+            cliff[col_name] = abs(cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[0])
+            effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data_mapped3[col_name].size * 2)
             pvalue[col_name] = abs(w_test.pvalue)
             z[col_name] = w_test.zstatistic
             statistic[col_name] = abs(w_test.statistic)
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
+            cliff[col_name] = 0.0
             effect[col_name] = 0.0
             pvalue[col_name] = 1.0
+            differences[col_name] = 0
             z[col_name] = 0.0
             statistic[col_name] = 0.0
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile,
                                 fieldnames=['question', 'first avg', 'second avg', 'statistic', 'z',
-                                            'wilcoxon p-value', 'effect size'],
+                                            'wilcoxon p-value', 'effect size', 'cliff delta'],
                                 quoting=csv.QUOTE_ALL)
         writer.writeheader()
-        for col_name in [c for c in first_data.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]:
+        for col_name in [c for c in first_data_mapped3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]:
             writer.writerow({
                 'question': col_name,
-                'first avg': first_data[col_name].mean(),
-                'second avg': second_data[col_name].mean(),
+                'first avg': first_data_mapped3[col_name].mean(),
+                'second avg': second_data_mapped3[col_name].mean(),
                 'wilcoxon p-value': pvalue[col_name],
                 'effect size': effect[col_name],
+                'cliff delta': cliff[col_name],
                 'z': z[col_name],
                 'statistic': statistic[col_name]
             })
