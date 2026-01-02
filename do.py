@@ -375,18 +375,26 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     second_data_mapped3_means = {col_name: second_data_mapped3[col_name].mean() for col_name in columns}
     effect = {}
     pvalue = {}
+    differences = {}
+
     for col_name in columns:
         try:
+            # Use .values to avoid alignment errors if indices differ
+            diff_mask = first_data_mapped3[col_name].values != second_data_mapped3[col_name].values
+            differences[col_name] = diff_mask.sum()
+
             w_test = wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
-                              zero_method="pratt", alternative="two-sided", method="approx")
-            effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data_mapped3[col_name].size)
+                              zero_method="wilcox", alternative="two-sided", method="approx", correction=True)
+            effect[col_name] = abs(w_test.zstatistic) / sqrt(differences[col_name].size)
             pvalue[col_name] = abs(w_test.pvalue)
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
             effect[col_name] = 0.0
             pvalue[col_name] = 1.0
+            differences[col_name] = 0
     log.debug(f"Wilcoxon R: {effect}")
     log.debug(f"Wilcoxon pvalue: {pvalue}")
+    log.debug(f"Number of differences: {differences}")
     columns_with_effect = []
 
     # Bisogna azzerare effect per le colonne che hanno pvalue > conf.PVALUE_THRESHOLD
