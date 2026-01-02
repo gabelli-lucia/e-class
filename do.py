@@ -352,22 +352,6 @@ def verify_pre_post_files(filename):
     return True, f"'{filename}' and '{post_filename}' exist"
 
 
-# Example usage
-if __name__ == "__main__":
-    # Example for remove_prefix_from_columns
-    df = pd.DataFrame(columns=['Q01_ID', 'Q02_Name', 'Q03_Age', 'Other_Column'])
-    df_new = remove_prefix_from_columns(df)
-    print("Original columns:", df.columns.tolist())
-    print("New columns:", df_new.columns.tolist())
-
-    # Example for verify_pre_post_files
-    test_file = 'ECLASS_Ita_PRE_FIS2a.csv'
-    is_valid, message = verify_pre_post_files(test_file)
-    print(f"\nVerifying file '{test_file}':")
-    print(f"Valid: {is_valid}")
-    print(f"Message: {message}")
-
-
 def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, filename):
     """Creates a chart showing first/second comparison with statistical significance indicators.
 
