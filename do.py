@@ -13,6 +13,7 @@ import pandas as pd
 from matplotlib.patches import Rectangle
 from scipy.stats import wilcoxon
 from cliffs_delta import cliffs_delta
+from statsmodels.stats.multitest import multipletests
 
 import conf
 
@@ -376,6 +377,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     second_data_mapped3_means = {col_name: second_data_mapped3[col_name].mean() for col_name in columns}
     effect = {}
     pvalue = {}
+    qvalue = {}
     differences = {}
     cliff = {}
 
@@ -390,21 +392,24 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
             cliff[col_name] = abs(cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[0])
             effect[col_name] = abs(w_test.zstatistic) / sqrt(differences[col_name].size)
             pvalue[col_name] = abs(w_test.pvalue)
+            _, qvalue[col_name], _, _ = multipletests(pvalue[col_name], alpha=conf.PVALUE_THRESHOLD, method='fdr_bh')
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
             cliff[col_name] = 0.0
             effect[col_name] = 0.0
             pvalue[col_name] = 1.0
+            qvalue[col_name] = 1.0
             differences[col_name] = 0
     log.debug(f"Wilcoxon R: {effect}")
     log.debug(f"Cliffs Delta: {cliff}")
     log.debug(f"Wilcoxon pvalue: {pvalue}")
+    log.debug(f"Wilcoxon qvalue: {qvalue}")
     log.debug(f"Number of differences: {differences}")
     columns_with_effect = []
 
     # Bisogna azzerare effect per le colonne che hanno pvalue > conf.PVALUE_THRESHOLD
     for col_name in columns:
-        if pvalue[col_name] > conf.PVALUE_THRESHOLD:
+        if qvalue[col_name][0] > conf.PVALUE_THRESHOLD:
             effect[col_name] = 0.0
             cliff[col_name] = 0.0
         else:
@@ -729,8 +734,10 @@ def dump_averages(first_data_mapped3, second_data_mapped3, filename):
     columns = [c for c in first_data_mapped3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]
     effect = {}
     pvalue = {}
+    qvalue = {}
     differences = {}
     cliff = {}
+    cliff_eval = {}
     statistic = {}
     z = {}
     for col_name in columns:
@@ -742,22 +749,27 @@ def dump_averages(first_data_mapped3, second_data_mapped3, filename):
             w_test = wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
                               zero_method="wilcox", alternative="two-sided", method="approx", correction=True)
             cliff[col_name] = abs(cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[0])
+            cliff_eval[col_name] = cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[1]
             effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data_mapped3[col_name].size * 2)
             pvalue[col_name] = abs(w_test.pvalue)
+            _, qvalue[col_name], _, _ = multipletests(pvalue[col_name], alpha=conf.PVALUE_THRESHOLD, method='fdr_bh')
             z[col_name] = w_test.zstatistic
             statistic[col_name] = abs(w_test.statistic)
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
             cliff[col_name] = 0.0
+            cliff_eval[col_name] = ''
             effect[col_name] = 0.0
             pvalue[col_name] = 1.0
+            qvalue[col_name] = 1.0
             differences[col_name] = 0
             z[col_name] = 0.0
             statistic[col_name] = 0.0
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile,
                                 fieldnames=['question', 'first avg', 'second avg', 'statistic', 'z',
-                                            'wilcoxon p-value', 'effect size', 'cliff delta'],
+                                            'wilcoxon p-value', 'FDR BH q-value', 'effect size', 'cliff delta',
+                                            'cliff eval'],
                                 quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for col_name in [c for c in first_data_mapped3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]:
@@ -766,8 +778,10 @@ def dump_averages(first_data_mapped3, second_data_mapped3, filename):
                 'first avg': first_data_mapped3[col_name].mean(),
                 'second avg': second_data_mapped3[col_name].mean(),
                 'wilcoxon p-value': pvalue[col_name],
+                'FDR BH q-value': qvalue[col_name],
                 'effect size': effect[col_name],
                 'cliff delta': cliff[col_name],
+                'cliff eval': cliff_eval[col_name],
                 'z': z[col_name],
                 'statistic': statistic[col_name]
             })
