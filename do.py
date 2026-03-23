@@ -807,8 +807,8 @@ if __name__ == "__main__":
                         help='Processing mode: pre (default) or post')
     parser.add_argument('--delimiter', type=str, choices=['semicolon', 'comma'], default='comma',
                         help='CSV field delimiter: semicolon or comma (default)')
-    parser.add_argument('--expert', type=str, default='expert',
-                        help='Only if lang=en, the substring that is contained in all EXPERT columns (default: expert).')
+    parser.add_argument('--expert', type=str, default='physicists',
+                        help='Only if lang=en, the substring that is contained in all EXPERT columns (default: physicists).')
 
     # Parse arguments
     args = parser.parse_args()
