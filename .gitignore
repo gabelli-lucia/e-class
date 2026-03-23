@@ -13,3 +13,9 @@
 /_pre
 /.idea
 /esempi
+20??-20??
+*.pages
+*.pdf
+*.numbers
+__pycache__
+

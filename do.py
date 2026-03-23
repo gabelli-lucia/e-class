@@ -21,7 +21,7 @@ import conf
 import openpyxl
 import matplotlib
 
-log.basicConfig(level=log.DEBUG)
+log.basicConfig(level=log.INFO)
 
 
 class PrePost(Enum):
