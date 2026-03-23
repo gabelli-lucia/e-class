@@ -433,7 +433,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     # df2[['Effect']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
     #                      secondary_y=True, legend=False)
     df2[['Cliff']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
-                         secondary_y=True, legend=False)
+                        secondary_y=True, legend=False)
 
     # Titolo del grafico
     ax1.set_title('Average score on "What do YOU think" questions')
@@ -807,6 +807,8 @@ if __name__ == "__main__":
                         help='Processing mode: pre (default) or post')
     parser.add_argument('--delimiter', type=str, choices=['semicolon', 'comma'], default='comma',
                         help='CSV field delimiter: semicolon or comma (default)')
+    parser.add_argument('--expert', type=str, default='expert',
+                        help='Only if lang=en, the substring that is contained in all EXPERT columns (default: expert).')
 
     # Parse arguments
     args = parser.parse_args()
@@ -819,7 +821,7 @@ if __name__ == "__main__":
     conf.COL_MATRICOLA = args.matricola
     if args.lang == 'en':
         conf.COL_TU = " YOU "
-        conf.COL_EXP = " experts "
+        conf.COL_EXP = " " + args.expert + " "
         conf.COL_SUCCESS = " important, "
 
     filenames = args.input_files
