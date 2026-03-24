@@ -823,7 +823,7 @@ if __name__ == "__main__":
     if args.lang == 'en':
         conf.COL_TU = " YOU "
         conf.COL_EXP = " " + args.expert + " "
-        conf.COL_SUCCESS = " important, "
+        conf.COL_SUCCESS = " important "
 
     filenames = args.input_files
 
