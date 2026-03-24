@@ -238,14 +238,14 @@ def chart_means(first_data, second_data, filename):
     mean_second_tu, sigma_second_tu, err_second_tu = mean_and_sigma_of_columns_by_name(second_data, conf.COL_TU)
     mean_second_exp, sigma_second_exp, err_second_exp = mean_and_sigma_of_columns_by_name(second_data, conf.COL_EXP)
 
-    log.debug(f"Averages first:  TU: {mean_first_tu}, EXP: {mean_first_exp}")
-    log.debug(f"Averages second: TU: {mean_second_tu}, EXP: {mean_second_exp}")
+    log.info(f"Averages first:  TU: {mean_first_tu}, EXP: {mean_first_exp}")
+    log.info(f"Averages second: TU: {mean_second_tu}, EXP: {mean_second_exp}")
 
-    log.debug(f"Sigmas first:    TU: {sigma_first_tu}, EXP: {sigma_first_exp}")
-    log.debug(f"Sigmas second:   TU: {sigma_second_tu}, EXP: {sigma_second_exp}")
+    log.info(f"Sigmas first:    TU: {sigma_first_tu}, EXP: {sigma_first_exp}")
+    log.info(f"Sigmas second:   TU: {sigma_second_tu}, EXP: {sigma_second_exp}")
 
-    log.debug(f"Err 95% first:   TU: {err_first_tu}, EXP: {err_first_exp}")
-    log.debug(f"Err 95% second:  TU: {err_second_tu}, EXP: {err_second_exp}")
+    log.info(f"Err 95% first:   TU: {err_first_tu}, EXP: {err_first_exp}")
+    log.info(f"Err 95% second:  TU: {err_second_tu}, EXP: {err_second_exp}")
 
     means = pd.DataFrame(
         {'first/second': ['PRE', 'POST'], 'YOU': [mean_first_tu, mean_second_tu],
@@ -328,6 +328,7 @@ def verify_pre_post_files(filename):
         # If POST file exists: (True, 'Valid PRE file with corresponding POST file')
         # If POST file doesn't exist: (False, 'Corresponding POST file not found')
     """
+    post_filename = ''
     # Check if filename contains '_PRE_'
     if '_PRE_' in filename:
         if not os.path.exists(filename):
