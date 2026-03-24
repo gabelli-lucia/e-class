@@ -703,7 +703,8 @@ def dump_success(df: pd.DataFrame, filename: str):
     """
     log.debug('Looking for Important Questions')
     with open(filename, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['question', 'fraction[-1]', 'fraction[+1]'], quoting=csv.QUOTE_ALL)
+        writer = csv.DictWriter(csvfile, fieldnames=['question', 'invert', 'fraction[-1]', 'fraction[+1]'],
+                                quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for i in range(1, len(conf.Q) + 1):
             col_name = find_column(i, conf.COL_SUCCESS, df)
@@ -720,8 +721,13 @@ def dump_success(df: pd.DataFrame, filename: str):
                 except KeyError:
                     fraction_p1 = 0
                 log.debug(f"Q{i},{fraction_n1:.3f},{fraction_p1:.3f}")
+                if f"{i}" in conf.COL_TO_INVERT:
+                    invert = "*"
+                else:
+                    invert = ""
                 writer.writerow({
                     'question': col_name,
+                    'invert': f"{invert}",
                     'fraction[-1]': f"{fraction_n1:.3f}",
                     'fraction[+1]': f"{fraction_p1:.3f}"
                 })
