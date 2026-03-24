@@ -5,7 +5,7 @@ import os
 import re
 import textwrap
 from enum import Enum
-from math import sqrt
+from math import sqrt, isnan
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -409,7 +409,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
 
     # Bisogna azzerare effect per le colonne che hanno pvalue > conf.PVALUE_THRESHOLD
     for col_name in columns:
-        if qvalue[col_name][0] > conf.PVALUE_THRESHOLD:
+        if isnan(qvalue[col_name][0]) or qvalue[col_name][0] > conf.PVALUE_THRESHOLD:
             effect[col_name] = 0.0
             cliff[col_name] = 0.0
         else:
