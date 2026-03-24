@@ -7,7 +7,7 @@ Questo script elabora file di E-CLASS in due modalità:
 Utilizzare l'argomento `--mode` per specificare la modalità desiderata.
 
 ```
-usage: do.py [-h] [--threshold THRESHOLD] [--matricola MATRICOLA] [--lang LANG] [--mode {pre,post}] input_file
+usage: do.py [-h] [--threshold THRESHOLD] [--matricola MATRICOLA] [--lang LANG] [--mode {pre,post}] [--expert EXPERT] input_file
 
 Process E-CLASS survey data.
 
@@ -23,8 +23,12 @@ optional arguments:
                         Matricola column name (default: Matricola)
   --lang LANG           File language (it, en; default: it)
   --mode {pre,post}     Processing mode: pre (default) or post
-
+  --expert EXPERT       Only if lang=en, the substring that is contained in all EXPERT columns (default: physicists).
 ```
+
+È più semplice usare lo script `do.sh` con gli stessi parametri, nella directory che contiene i file di input. Per 
+esempio, se la directory con i file di input è una sottodirectory della directory dello script, il comando
+da usare è `../do.sh`.
 
 # Compilare in un eseguibile
 
