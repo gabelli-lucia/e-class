@@ -703,18 +703,27 @@ def dump_success(df: pd.DataFrame, filename: str):
     """
     log.debug('Looking for Important Questions')
     with open(filename, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['question', 'success'], quoting=csv.QUOTE_ALL)
+        writer = csv.DictWriter(csvfile, fieldnames=['question', 'fraction[-1]', 'fraction[+1]'], quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for i in range(1, len(conf.Q) + 1):
             col_name = find_column(i, conf.COL_SUCCESS, df)
             if col_name is not None:
                 count = df[col_name].count()
-                v_count = df[col_name].value_counts()[1]
-                fraction = v_count / count
-                log.debug(f"Q{i},{fraction:.3f}")
+                try:
+                    count_n1 = df[col_name].value_counts()[-1]
+                    fraction_n1 = count_n1 / count
+                except KeyError:
+                    fraction_n1 = 0
+                try:
+                    count_p1 = df[col_name].value_counts()[1]
+                    fraction_p1 = count_p1 / count
+                except KeyError:
+                    fraction_p1 = 0
+                log.debug(f"Q{i},{fraction_n1:.3f},{fraction_p1:.3f}")
                 writer.writerow({
                     'question': col_name,
-                    'success': f"{fraction:.3f}"
+                    'fraction[-1]': f"{fraction_n1:.3f}",
+                    'fraction[+1]': f"{fraction_p1:.3f}"
                 })
 
 
