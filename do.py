@@ -104,6 +104,14 @@ def read_files(pp, *files):
     df[conf.COL_MATRICOLA] = df[conf.COL_MATRICOLA].map(lambda x: '' if x != '' and int(x) < 1000000 else x)
     df[conf.COL_MATRICOLA] = df[conf.COL_MATRICOLA].map(lambda x: '' if x != '' and int(x) > 3000000 else x)
 
+    # Removing duplicate Matricola if present (excluding empty matricolas)
+    non_empty_mat = df[df[conf.COL_MATRICOLA] != '']
+    dup_mat = non_empty_mat.duplicated(subset=[conf.COL_MATRICOLA])
+    if True in dup_mat.unique():
+        dup_mat_values = non_empty_mat[non_empty_mat.duplicated(subset=[conf.COL_MATRICOLA], keep=False)][conf.COL_MATRICOLA].unique()
+        log.warning(f"{pp.name}: Removing duplicate Matricola: {dup_mat_values}")
+        df = df[~df[conf.COL_MATRICOLA].isin(dup_mat_values)]
+
     log.debug(f"{df.dtypes}")
     return df
 
@@ -310,49 +318,43 @@ def remove_prefix_from_columns(df, separator='_'):
     return result
 
 
-def verify_pre_post_files(filename):
+def verify_pre_post_files(*filenames):
     """
-    Verifies that the filename contains '_PRE_' and that a corresponding file
-    with '_POST_' instead of '_PRE_' exists.
+    Verifies that all filenames contain '_PRE_' (or '_POST_') and that corresponding files
+    with '_POST_' (or '_POSTPOST_') exist.
 
     Args:
-        filename (str): The filename to verify
+        *filenames: Filenames to verify
 
     Returns:
         tuple: A tuple containing (is_valid, message)
-            - is_valid (bool): True if the filename contains '_PRE_' and the corresponding '_POST_' file exists
-            - message (str): A message explaining the validation result
-
-    Examples:
-        # >>> verify_pre_post_files('ECLASS_Ita_PRE_FIS2a.csv')
-        # If POST file exists: (True, 'Valid PRE file with corresponding POST file')
-        # If POST file doesn't exist: (False, 'Corresponding POST file not found')
     """
-    post_filename = ''
-    # Check if filename contains '_PRE_'
-    if '_PRE_' in filename:
-        if not os.path.exists(filename):
-            return False, f"PRE file '{filename}' not found"
+    for filename in filenames:
+        post_filename = ''
+        # Check if filename contains '_PRE_'
+        if '_PRE_' in filename:
+            if not os.path.exists(filename):
+                return False, f"PRE file '{filename}' not found"
 
-        # Generate the corresponding POST filename
-        post_filename = filename.replace('_PRE_', '_POST_')
+            # Generate the corresponding POST filename
+            post_filename = filename.replace('_PRE_', '_POST_')
 
-        # Check if the POST file exists
-        if not os.path.exists(post_filename):
-            return False, f"Corresponding POST file '{post_filename}' not found"
+            # Check if the POST file exists
+            if not os.path.exists(post_filename):
+                return False, f"Corresponding POST file '{post_filename}' not found"
 
-    if '_POST_' in filename:
-        if not os.path.exists(filename):
-            return False, f"POST file '{filename}' not found"
+        if '_POST_' in filename:
+            if not os.path.exists(filename):
+                return False, f"POST file '{filename}' not found"
 
-        # Generate the corresponding POST filename
-        post_filename = filename.replace('_POST_', '_POSTPOST_')
+            # Generate the corresponding POST filename
+            post_filename = filename.replace('_POST_', '_POSTPOST_')
 
-        # Check if the POST file exists
-        if not os.path.exists(post_filename):
-            return False, f"Corresponding POSTPOST file '{post_filename}' not found"
+            # Check if the POST file exists
+            if not os.path.exists(post_filename):
+                return False, f"Corresponding POSTPOST file '{post_filename}' not found"
 
-    return True, f"'{filename}' and '{post_filename}' exist"
+    return True, "All files exist and have matching counterpart files"
 
 
 def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, filename):
@@ -388,18 +390,24 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
             diff_mask = first_data_mapped3[col_name].values != second_data_mapped3[col_name].values
             differences[col_name] = diff_mask.sum()
 
-            w_test = wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
-                              zero_method="wilcox", alternative="two-sided", method="approx", correction=True)
-            cliff[col_name] = abs(cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[0])
-            effect[col_name] = abs(w_test.zstatistic) / sqrt(differences[col_name].size)
-            pvalue[col_name] = abs(w_test.pvalue)
-            _, qvalue[col_name], _, _ = multipletests(pvalue[col_name], alpha=conf.PVALUE_THRESHOLD, method='fdr_bh')
+            if differences[col_name] == 0:
+                cliff[col_name] = 0.0
+                effect[col_name] = 0.0
+                pvalue[col_name] = 1.0
+                qvalue[col_name] = np.array([1.0])
+            else:
+                w_test = wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
+                                  zero_method="wilcox", alternative="two-sided", method="approx", correction=True)
+                cliff[col_name] = abs(cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[0])
+                effect[col_name] = abs(w_test.zstatistic) / sqrt(differences[col_name].size)
+                pvalue[col_name] = abs(w_test.pvalue)
+                _, qvalue[col_name], _, _ = multipletests(pvalue[col_name], alpha=conf.PVALUE_THRESHOLD, method='fdr_bh')
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
             cliff[col_name] = 0.0
             effect[col_name] = 0.0
             pvalue[col_name] = 1.0
-            qvalue[col_name] = 1.0
+            qvalue[col_name] = np.array([1.0])
             differences[col_name] = 0
     log.debug(f"Wilcoxon R: {effect}")
     log.debug(f"Cliffs Delta: {cliff}")
@@ -410,7 +418,8 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
 
     # Bisogna azzerare effect per le colonne che hanno pvalue > conf.PVALUE_THRESHOLD
     for col_name in columns:
-        if isnan(qvalue[col_name][0]) or qvalue[col_name][0] > conf.PVALUE_THRESHOLD:
+        q_val = qvalue[col_name][0] if isinstance(qvalue[col_name], (list, np.ndarray)) else qvalue[col_name]
+        if isnan(q_val) or q_val > conf.PVALUE_THRESHOLD:
             effect[col_name] = 0.0
             cliff[col_name] = 0.0
         else:
@@ -762,22 +771,31 @@ def dump_averages(first_data_mapped3, second_data_mapped3, filename):
             diff_mask = first_data_mapped3[col_name].values != second_data_mapped3[col_name].values
             differences[col_name] = diff_mask.sum()
 
-            w_test = wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
-                              zero_method="wilcox", alternative="two-sided", method="approx", correction=True)
-            cliff[col_name] = abs(cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[0])
-            cliff_eval[col_name] = cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[1]
-            effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data_mapped3[col_name].size * 2)
-            pvalue[col_name] = abs(w_test.pvalue)
-            _, qvalue[col_name], _, _ = multipletests(pvalue[col_name], alpha=conf.PVALUE_THRESHOLD, method='fdr_bh')
-            z[col_name] = w_test.zstatistic
-            statistic[col_name] = abs(w_test.statistic)
+            if differences[col_name] == 0:
+                cliff[col_name] = 0.0
+                cliff_eval[col_name] = 'negligible'
+                effect[col_name] = 0.0
+                pvalue[col_name] = 1.0
+                qvalue[col_name] = np.array([1.0])
+                z[col_name] = 0.0
+                statistic[col_name] = 0.0
+            else:
+                w_test = wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
+                                  zero_method="wilcox", alternative="two-sided", method="approx", correction=True)
+                cliff[col_name] = abs(cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[0])
+                cliff_eval[col_name] = cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[1]
+                effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data_mapped3[col_name].size * 2)
+                pvalue[col_name] = abs(w_test.pvalue)
+                _, qvalue[col_name], _, _ = multipletests(pvalue[col_name], alpha=conf.PVALUE_THRESHOLD, method='fdr_bh')
+                z[col_name] = w_test.zstatistic
+                statistic[col_name] = abs(w_test.statistic)
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
             cliff[col_name] = 0.0
             cliff_eval[col_name] = ''
             effect[col_name] = 0.0
             pvalue[col_name] = 1.0
-            qvalue[col_name] = 1.0
+            qvalue[col_name] = np.array([1.0])
             differences[col_name] = 0
             z[col_name] = 0.0
             statistic[col_name] = 0.0
@@ -870,6 +888,14 @@ if __name__ == "__main__":
     populate_matricola_from_id(first_data)
     populate_matricola_from_id(second_data)
 
+    # Drop duplicate matricole after restoration to guarantee 1-to-1 matching
+    for d, t in [(first_data, first_type), (second_data, second_type)]:
+        dup = d.duplicated(subset=[conf.COL_MATRICOLA], keep=False)
+        if True in dup.unique():
+            dup_vals = d[dup][conf.COL_MATRICOLA].unique()
+            log.warning(f"{t.name}: Removing duplicate Matricola: {dup_vals}")
+            d.drop_duplicates(subset=[conf.COL_MATRICOLA], keep=False, inplace=True)
+
     first_data = remove_unmatched_rows(first_data, second_data)
     second_data = remove_unmatched_rows(second_data, first_data)
     first_data = remove_unmatched_rows(first_data, second_data)
@@ -877,7 +903,11 @@ if __name__ == "__main__":
     log.info(
         f"Removing unmatched rows. Survived {first_type.name}: {len(first_data)} {second_type.name}: {len(second_data)}")
 
-    # TODO se ci sono duplicati, bisogna tranquillamente ignorare quelli che dall'altra parte non ci sono
+    # Sort both datasets by Matricola to ensure 1-to-1 row alignment for paired statistical tests
+    first_data.sort_values(by=conf.COL_MATRICOLA, inplace=True)
+    first_data.reset_index(drop=True, inplace=True)
+    second_data.sort_values(by=conf.COL_MATRICOLA, inplace=True)
+    second_data.reset_index(drop=True, inplace=True)
 
     # Now, IDs are no more needed
     first_data.drop([conf.COL_ID], axis=1, inplace=True)
