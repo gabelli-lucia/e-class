@@ -457,7 +457,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     # Titolo dell'asse Y
     ax1.set_ylabel('Average Agreement with Experts')
     # Titolo dell'asse Y secondario
-    ax1.twinx().set_ylabel('Effect Size (Wilcoxon Cliff Delta)')
+    ax1.twinx().set_ylabel('Effect Size (Wilcoxon R)')
     # Griglia con righe solo verticali
     ax1.xaxis.grid(True, linestyle='dashed', linewidth=0.5)
 
