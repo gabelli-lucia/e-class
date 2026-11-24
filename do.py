@@ -108,7 +108,8 @@ def read_files(pp, *files):
     non_empty_mat = df[df[conf.COL_MATRICOLA] != '']
     dup_mat = non_empty_mat.duplicated(subset=[conf.COL_MATRICOLA])
     if True in dup_mat.unique():
-        dup_mat_values = non_empty_mat[non_empty_mat.duplicated(subset=[conf.COL_MATRICOLA], keep=False)][conf.COL_MATRICOLA].unique()
+        dup_mat_values = non_empty_mat[non_empty_mat.duplicated(subset=[conf.COL_MATRICOLA], keep=False)][
+            conf.COL_MATRICOLA].unique()
         log.warning(f"{pp.name}: Removing duplicate Matricola: {dup_mat_values}")
         df = df[~df[conf.COL_MATRICOLA].isin(dup_mat_values)]
 
@@ -357,6 +358,16 @@ def verify_pre_post_files(*filenames):
     return True, "All files exist and have matching counterpart files"
 
 
+def calculate_qvalues(pvalues):
+    qvalues = {name: float('nan') for name in pvalues}
+    valid_names = [name for name, value in pvalues.items() if not isnan(value)]
+    if valid_names:
+        _, corrected, _, _ = multipletests(
+            [pvalues[name] for name in valid_names], alpha=conf.PVALUE_THRESHOLD, method='fdr_bh')
+        qvalues.update(zip(valid_names, corrected))
+    return qvalues
+
+
 def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, filename):
     """Creates a chart showing first/second comparison with statistical significance indicators.
 
@@ -376,11 +387,10 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
         None
     """
     columns = [c for c in first_data_mapped3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP) and substring in c]
-    first_data_mapped3_means = {col_name: first_data_mapped3[col_name].mean() for col_name in columns}
-    second_data_mapped3_means = {col_name: second_data_mapped3[col_name].mean() for col_name in columns}
+    first_data_mapped3_means = {col_name: float(first_data_mapped3[col_name].mean()) for col_name in columns}
+    second_data_mapped3_means = {col_name: float(second_data_mapped3[col_name].mean()) for col_name in columns}
     effect = {}
     pvalue = {}
-    qvalue = {}
     differences = {}
     cliff = {}
 
@@ -394,21 +404,19 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
                 cliff[col_name] = 0.0
                 effect[col_name] = 0.0
                 pvalue[col_name] = 1.0
-                qvalue[col_name] = np.array([1.0])
             else:
                 w_test = wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
                                   zero_method="wilcox", alternative="two-sided", method="approx", correction=True)
                 cliff[col_name] = abs(cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[0])
                 effect[col_name] = abs(w_test.zstatistic) / sqrt(differences[col_name].size)
                 pvalue[col_name] = abs(w_test.pvalue)
-                _, qvalue[col_name], _, _ = multipletests(pvalue[col_name], alpha=conf.PVALUE_THRESHOLD, method='fdr_bh')
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
             cliff[col_name] = 0.0
             effect[col_name] = 0.0
             pvalue[col_name] = 1.0
-            qvalue[col_name] = np.array([1.0])
             differences[col_name] = 0
+    qvalue = calculate_qvalues(pvalue)
     log.debug(f"Wilcoxon R: {effect}")
     log.debug(f"Cliffs Delta: {cliff}")
     log.debug(f"Wilcoxon pvalue: {pvalue}")
@@ -416,9 +424,9 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     log.debug(f"Number of differences: {differences}")
     columns_with_effect = []
 
-    # Bisogna azzerare effect per le colonne che hanno pvalue > conf.PVALUE_THRESHOLD
+    # Bisogna azzerare effect per le colonne che hanno qvalue > conf.PVALUE_THRESHOLD
     for col_name in columns:
-        q_val = qvalue[col_name][0] if isinstance(qvalue[col_name], (list, np.ndarray)) else qvalue[col_name]
+        q_val = qvalue[col_name]
         if isnan(q_val) or q_val > conf.PVALUE_THRESHOLD:
             effect[col_name] = 0.0
             cliff[col_name] = 0.0
@@ -759,7 +767,6 @@ def dump_averages(first_data_mapped3, second_data_mapped3, filename):
     columns = [c for c in first_data_mapped3.columns if column_is_to_be_mapped(c, conf.COL_DONT_MAP)]
     effect = {}
     pvalue = {}
-    qvalue = {}
     differences = {}
     cliff = {}
     cliff_eval = {}
@@ -776,7 +783,6 @@ def dump_averages(first_data_mapped3, second_data_mapped3, filename):
                 cliff_eval[col_name] = 'negligible'
                 effect[col_name] = 0.0
                 pvalue[col_name] = 1.0
-                qvalue[col_name] = np.array([1.0])
                 z[col_name] = 0.0
                 statistic[col_name] = 0.0
             else:
@@ -786,7 +792,6 @@ def dump_averages(first_data_mapped3, second_data_mapped3, filename):
                 cliff_eval[col_name] = cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[1]
                 effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data_mapped3[col_name].size * 2)
                 pvalue[col_name] = abs(w_test.pvalue)
-                _, qvalue[col_name], _, _ = multipletests(pvalue[col_name], alpha=conf.PVALUE_THRESHOLD, method='fdr_bh')
                 z[col_name] = w_test.zstatistic
                 statistic[col_name] = abs(w_test.statistic)
         except ValueError:
@@ -795,10 +800,10 @@ def dump_averages(first_data_mapped3, second_data_mapped3, filename):
             cliff_eval[col_name] = ''
             effect[col_name] = 0.0
             pvalue[col_name] = 1.0
-            qvalue[col_name] = np.array([1.0])
             differences[col_name] = 0
             z[col_name] = 0.0
             statistic[col_name] = 0.0
+    qvalue = calculate_qvalues(pvalue)
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile,
                                 fieldnames=['question', 'first avg', 'second avg', 'statistic', 'z',
