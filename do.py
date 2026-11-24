@@ -368,6 +368,18 @@ def calculate_qvalues(pvalues):
     return qvalues
 
 
+def save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir):
+    log.info("Saving CSV files")
+    dump_success(second_data3, os.path.join(output_dir, 'out-success.csv'))
+    dump_averages(first_data3, second_data3, os.path.join(output_dir, 'out-medie.csv'))
+
+    log.info("Saving charts")
+    chart_means(first_data2, second_data2, os.path.join(output_dir, 'out-chart-means.png'))
+    chart_what_do_you_think(first_data3, second_data3, conf.COL_TU,
+                            os.path.join(output_dir, 'out-chart-what-do-you-think.png'))
+    chart_before_after(first_data2, second_data2, os.path.join(output_dir, 'out-chart-after-before.png'))
+
+
 def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, filename):
     """Creates a chart showing first/second comparison with statistical significance indicators.
 
@@ -848,6 +860,8 @@ if __name__ == "__main__":
                         help='CSV field delimiter: semicolon or comma (default)')
     parser.add_argument('--expert', type=str, default='physicists',
                         help='Only if lang=en, the substring that is contained in all EXPERT columns (default: physicists).')
+    parser.add_argument('--output-in-input-dir', action='store_true',
+                        help='Save output alongside the input files (which must share a directory).')
 
     # Parse arguments
     args = parser.parse_args()
@@ -864,6 +878,12 @@ if __name__ == "__main__":
         conf.COL_SUCCESS = " important "
 
     filenames = args.input_files
+    output_dir = '.'
+    if args.output_in_input_dir:
+        input_dirs = {os.path.realpath(os.path.dirname(filename) or '.') for filename in filenames}
+        if len(input_dirs) != 1:
+            parser.error('--output-in-input-dir requires all input files to be in the same directory')
+        output_dir = input_dirs.pop()
 
     # Determine which mode we're using
     if args.mode == 'pre':
@@ -929,14 +949,6 @@ if __name__ == "__main__":
     # second_data2.to_excel(f"{second_type.name.lower()}2.xlsx")
     # second_data3.to_excel(f"{second_type.name.lower()}3.xlsx")
 
-    log.info(f"Saving CSV files")
-    dump_success(second_data3, 'out-success.csv')
-    dump_averages(first_data3, second_data3, "out-medie.csv")
-
-    log.info(f"Saving charts")
-    chart_means(first_data2, second_data2, 'out-chart-means.png')
-    chart_what_do_you_think(first_data3, second_data3, conf.COL_TU,
-                            'out-chart-what-do-you-think.png')
-    chart_before_after(first_data2, second_data2, 'out-chart-after-before.png')
+    save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir)
 
     log.info("Done.")

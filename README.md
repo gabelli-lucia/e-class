@@ -30,6 +30,10 @@ optional arguments:
 esempio, se la directory con i file di input è una sottodirectory della directory dello script, il comando
 da usare è `../do.sh`.
 
+Per salvare tutti i file di output nella directory degli input, usare `--output-in-input-dir`.
+Gli input vengono elaborati insieme e, con questa opzione, devono trovarsi nella stessa directory.
+Senza l'opzione, gli output vengono salvati nella directory corrente.
+
 # Compilare in un eseguibile
 
 Usare pyinstaller:
