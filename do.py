@@ -62,7 +62,7 @@ def read_files(pp, *files):
         df[conf.COL_MATRICOLA] = ""
 
     # Removing unuseful columns
-    # df.drop(conf.COL_TO_DROP, axis=1, inplace=True)
+    # df = df.drop(conf.COL_TO_DROP, axis=1)
 
     # Identifying the CHECK columns
     check_columns = [col for col in df.columns if conf.COL_CHECK in col]
@@ -72,7 +72,7 @@ def read_files(pp, *files):
     for check in check_columns:
         df = df[df[check] == 4]
     # Removing the CHECK columns
-    df.drop(check_columns, axis=1, inplace=True)
+    df = df.drop(check_columns, axis=1)
     log.info(f"{pp.name}: Passed CHECK {len(df)} rows")
 
     # all ID should be upper case
@@ -85,7 +85,7 @@ def read_files(pp, *files):
     if True in dup.unique():
         log.warning(
             f"{pp.name}: Removing duplicate IDs: {df[ids.isin(ids[ids.duplicated()])].sort_values(conf.COL_ID)[conf.COL_ID].unique()}")
-        df.drop_duplicates(conf.COL_ID, keep=False, inplace=True)
+        df = df.drop_duplicates(conf.COL_ID, keep=False)
         # exit(1)
 
     # Inverting the columns that need inversion
@@ -313,7 +313,7 @@ def remove_prefix_from_columns(df, separator='_'):
             new_columns[col] = col
 
     # Rename the columns
-    result.rename(columns=new_columns, inplace=True)
+    result = result.rename(columns=new_columns)
 
     return result
 
@@ -894,7 +894,7 @@ if __name__ == "__main__":
         if True in dup.unique():
             dup_vals = d[dup][conf.COL_MATRICOLA].unique()
             log.warning(f"{t.name}: Removing duplicate Matricola: {dup_vals}")
-            d.drop_duplicates(subset=[conf.COL_MATRICOLA], keep=False, inplace=True)
+            d = d.drop_duplicates(subset=[conf.COL_MATRICOLA], keep=False)
 
     first_data = remove_unmatched_rows(first_data, second_data)
     second_data = remove_unmatched_rows(second_data, first_data)
@@ -904,14 +904,14 @@ if __name__ == "__main__":
         f"Removing unmatched rows. Survived {first_type.name}: {len(first_data)} {second_type.name}: {len(second_data)}")
 
     # Sort both datasets by Matricola to ensure 1-to-1 row alignment for paired statistical tests
-    first_data.sort_values(by=conf.COL_MATRICOLA, inplace=True)
-    first_data.reset_index(drop=True, inplace=True)
-    second_data.sort_values(by=conf.COL_MATRICOLA, inplace=True)
-    second_data.reset_index(drop=True, inplace=True)
+    first_data = first_data.sort_values(by=conf.COL_MATRICOLA)
+    first_data = first_data.reset_index(drop=True)
+    second_data = second_data.sort_values(by=conf.COL_MATRICOLA)
+    second_data = second_data.reset_index(drop=True)
 
     # Now, IDs are no more needed
-    first_data.drop([conf.COL_ID], axis=1, inplace=True)
-    second_data.drop([conf.COL_ID], axis=1, inplace=True)
+    first_data = first_data.drop([conf.COL_ID], axis=1)
+    second_data = second_data.drop([conf.COL_ID], axis=1)
     # first_data.to_excel(f"{first_type.name.lower()}.xlsx")
     # second_data.to_excel(f"{second_type.name.lower()}.xlsx")
 
