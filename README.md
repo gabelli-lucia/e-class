@@ -34,8 +34,8 @@ Per salvare tutti i file di output nella directory degli input, usare `--output-
 Gli input vengono elaborati insieme e, con questa opzione, devono trovarsi nella stessa directory.
 Senza l'opzione, gli output vengono salvati nella directory corrente.
 
-Usare `--use-q` per valutare la significatività nel grafico "What do YOU think" con i q-value
-corretti anziché con i p-value, utilizzati per default.
+Usare `--use=q` per valutare la significatività nel grafico "What do YOU think" con i q-value
+corretti. `--use=p` seleziona i p-value, utilizzati per default.
 
 # Compilare in un eseguibile
 

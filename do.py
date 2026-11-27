@@ -863,8 +863,8 @@ if __name__ == "__main__":
                         help='Only if lang=en, the substring that is contained in all EXPERT columns (default: physicists).')
     parser.add_argument('--output-in-input-dir', action='store_true',
                         help='Save output alongside the input files (which must share a directory).')
-    parser.add_argument('--use-q', action='store_true',
-                        help='Use FDR-corrected q-values for chart significance instead of p-values.')
+    parser.add_argument('--use', choices=['p', 'q'], default='p',
+                        help='Value used for chart significance: p (default) or FDR-corrected q.')
 
     # Parse arguments
     args = parser.parse_args()
@@ -952,6 +952,6 @@ if __name__ == "__main__":
     # second_data2.to_excel(f"{second_type.name.lower()}2.xlsx")
     # second_data3.to_excel(f"{second_type.name.lower()}3.xlsx")
 
-    save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir, use_q=args.use_q)
+    save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir, use_q=args.use == 'q')
 
     log.info("Done.")

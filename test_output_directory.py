@@ -29,6 +29,21 @@ class OutputDirectoryTests(unittest.TestCase):
             do.save_outputs(None, None, None, None, '.', use_q=True)
         self.assertTrue(mocks['chart_what_do_you_think'].call_args.kwargs['use_q'])
 
+    def test_use_argument_choices(self):
+        script = Path(do.__file__).resolve()
+        for option in ([], ['--use=p'], ['--use=q']):
+            with self.subTest(option=option), tempfile.TemporaryDirectory() as directory:
+                missing = str(Path(directory) / 'missing_PRE_x.csv')
+                result = subprocess.run([sys.executable, str(script), *option, missing],
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn('not found', result.stderr)
+        for option in (['--use=invalid'], ['--use-q'], ['--use']):
+            with self.subTest(option=option):
+                result = subprocess.run([sys.executable, str(script), *option, 'missing_PRE_x.csv'],
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 2)
+
     def test_different_input_directories_are_rejected(self):
         script = Path(do.__file__).resolve()
         with tempfile.TemporaryDirectory() as directory:
