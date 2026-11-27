@@ -420,7 +420,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
                 w_test = wilcoxon(x=first_data_mapped3[col_name], y=second_data_mapped3[col_name],
                                   zero_method="wilcox", alternative="two-sided", method="approx", correction=True)
                 cliff[col_name] = abs(cliffs_delta(first_data_mapped3[col_name], second_data_mapped3[col_name])[0])
-                effect[col_name] = abs(w_test.zstatistic) / sqrt(differences[col_name].size)
+                effect[col_name] = abs(w_test.zstatistic) / sqrt(first_data_mapped3[col_name].size * 2)
                 pvalue[col_name] = abs(w_test.pvalue)
         except ValueError:
             log.warning(f"Wilcoxon test failed for column {col_name}")
@@ -439,7 +439,8 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     # Bisogna azzerare effect per le colonne che hanno qvalue > conf.PVALUE_THRESHOLD
     for col_name in columns:
         q_val = qvalue[col_name]
-        if isnan(q_val) or q_val > conf.PVALUE_THRESHOLD:
+        p_val = pvalue[col_name]
+        if isnan(p_val) or p_val > conf.PVALUE_THRESHOLD:
             effect[col_name] = 0.0
             cliff[col_name] = 0.0
         else:
@@ -460,10 +461,10 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     ax1 = df2[['Pre']].plot(zorder=0, marker='s', markersize=8, linestyle='dashed')
     df2[['Post']].plot(ax=ax1, zorder=1, marker='o', markersize=8, linestyle='dashed')
     df2[['Stars']].plot(ax=ax1, marker='*', markersize=10, color='black', zorder=2, legend=False, linestyle='none')
-    # df2[['Effect']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
-    #                      secondary_y=True, legend=False)
-    df2[['Cliff']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
-                        secondary_y=True, legend=False)
+    df2[['Effect']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
+                         secondary_y=True, legend=False)
+    # df2[['Cliff']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
+    #                     secondary_y=True, legend=False)
 
     # Titolo del grafico
     ax1.set_title('Average score on "What do YOU think" questions')
@@ -477,7 +478,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     # Titolo dell'asse Y
     ax1.set_ylabel('Average Agreement with Experts')
     # Titolo dell'asse Y secondario
-    ax1.twinx().set_ylabel('Effect Size (Wilcoxon R)')
+    ax1.twinx().set_ylabel('Effect Size (Wilcoxon r)')
     # Griglia con righe solo verticali
     ax1.xaxis.grid(True, linestyle='dashed', linewidth=0.5)
 
