@@ -62,10 +62,25 @@ class QValueTests(unittest.TestCase):
                         SimpleNamespace(pvalue=p, zstatistic=1, statistic=1)
                         for p in (0.01, 0.04, float('nan'))]), \
                     patch.object(do, 'cliffs_delta', return_value=(0.5, 'medium')):
-                do.chart_what_do_you_think(self.first, self.second, 'TU', Path(directory) / 'chart.png', use_q=use_q)
+                do.chart_what_do_you_think(self.first, self.second, 'TU', Path(directory) / 'chart.png',
+                                           use='q' if use_q else 'p')
                 stars = plt.gcf().axes[0].lines[2].get_ydata()
                 self.assertEqual(np.ma.count(stars), expected_stars)
             plt.close('all')
+
+    def test_chart_cliff_threshold_and_bars(self):
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(do, 'wilcoxon', return_value=SimpleNamespace(pvalue=0.9, zstatistic=1)), \
+                patch.object(do, 'cliffs_delta', side_effect=[(0.1, ''), (do.conf.CLIFF_THRESHOLD, ''),
+                                                             (0.5, '')]):
+            do.chart_what_do_you_think(self.first, self.second, 'TU', Path(directory) / 'chart.png', use='cliff')
+            fig = plt.gcf()
+            stars = fig.axes[0].lines[2].get_ydata()
+            self.assertEqual(np.ma.count(stars), 3)  # includes the unchanged column (delta 0)
+            bars = fig.axes[1].patches
+            self.assertEqual([round(bar.get_height(), 3) for bar in bars], [0.1, 0.147, 0.0, 0.0])
+            self.assertEqual(fig.axes[-1].get_ylabel(), 'Effect Size (Cliff delta)')
+        plt.close('all')
 
 
 if __name__ == '__main__':

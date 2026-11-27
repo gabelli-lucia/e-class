@@ -368,7 +368,7 @@ def calculate_qvalues(pvalues):
     return qvalues
 
 
-def save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir, use_q=False):
+def save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir, use='p'):
     log.info("Saving CSV files")
     dump_success(second_data3, os.path.join(output_dir, 'out-success.csv'))
     dump_averages(first_data3, second_data3, os.path.join(output_dir, 'out-medie.csv'))
@@ -376,11 +376,11 @@ def save_outputs(first_data2, first_data3, second_data2, second_data3, output_di
     log.info("Saving charts")
     chart_means(first_data2, second_data2, os.path.join(output_dir, 'out-chart-means.png'))
     chart_what_do_you_think(first_data3, second_data3, conf.COL_TU,
-                            os.path.join(output_dir, 'out-chart-what-do-you-think.png'), use_q=use_q)
+                            os.path.join(output_dir, 'out-chart-what-do-you-think.png'), use=use)
     chart_before_after(first_data2, second_data2, os.path.join(output_dir, 'out-chart-after-before.png'))
 
 
-def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, filename, use_q=False):
+def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, filename, use='p'):
     """Creates a chart showing first/second comparison with statistical significance indicators.
 
     This function creates a visualization that shows first and second means for columns containing
@@ -394,7 +394,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
         second_data_mapped3 (pandas.DataFrame): Mapped second set of data
         substring (str): Substring to filter columns (e.g., 'TU' for student columns)
         filename (str): Path where the chart image will be saved
-        use_q (bool): Use FDR-corrected q-values for significance instead of p-values
+        use (str): Select p-values, q-values, or Cliff's delta for the chart check
 
     Returns:
         None
@@ -439,8 +439,9 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
 
     # Bisogna azzerare effect per le colonne non significative
     for col_name in columns:
-        value = qvalue[col_name] if use_q else pvalue[col_name]
-        if isnan(value) or value > conf.PVALUE_THRESHOLD:
+        value = {'p': pvalue, 'q': qvalue, 'cliff': cliff}[use][col_name]
+        threshold = conf.CLIFF_THRESHOLD if use == 'cliff' else conf.PVALUE_THRESHOLD
+        if isnan(value) or value > threshold:
             effect[col_name] = 0.0
             cliff[col_name] = 0.0
         else:
@@ -461,10 +462,9 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     ax1 = df2[['Pre']].plot(zorder=0, marker='s', markersize=8, linestyle='dashed')
     df2[['Post']].plot(ax=ax1, zorder=1, marker='o', markersize=8, linestyle='dashed')
     df2[['Stars']].plot(ax=ax1, marker='*', markersize=10, color='black', zorder=2, legend=False, linestyle='none')
-    df2[['Effect']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
+    effect_column = 'Cliff' if use == 'cliff' else 'Effect'
+    df2[[effect_column]].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
                          secondary_y=True, legend=False)
-    # df2[['Cliff']].plot(ax=ax1, kind='bar', width=0.8, color='grey', ylim=(0, 1), zorder=1, alpha=0.35,
-    #                     secondary_y=True, legend=False)
 
     # Titolo del grafico
     ax1.set_title('Average score on "What do YOU think" questions')
@@ -478,7 +478,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     # Titolo dell'asse Y
     ax1.set_ylabel('Average Agreement with Experts')
     # Titolo dell'asse Y secondario
-    ax1.twinx().set_ylabel('Effect Size (Wilcoxon r)')
+    ax1.twinx().set_ylabel('Effect Size (Cliff delta)' if use == 'cliff' else 'Effect Size (Wilcoxon r)')
     # Griglia con righe solo verticali
     ax1.xaxis.grid(True, linestyle='dashed', linewidth=0.5)
 
@@ -863,8 +863,8 @@ if __name__ == "__main__":
                         help='Only if lang=en, the substring that is contained in all EXPERT columns (default: physicists).')
     parser.add_argument('--output-in-input-dir', action='store_true',
                         help='Save output alongside the input files (which must share a directory).')
-    parser.add_argument('--use', choices=['p', 'q'], default='p',
-                        help='Value used for chart significance: p (default) or FDR-corrected q.')
+    parser.add_argument('--use', choices=['p', 'q', 'cliff'], default='p',
+                        help='Chart check: p (default), FDR-corrected q, or Cliff delta.')
 
     # Parse arguments
     args = parser.parse_args()
@@ -952,6 +952,6 @@ if __name__ == "__main__":
     # second_data2.to_excel(f"{second_type.name.lower()}2.xlsx")
     # second_data3.to_excel(f"{second_type.name.lower()}3.xlsx")
 
-    save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir, use_q=args.use == 'q')
+    save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir, use=args.use)
 
     log.info("Done.")

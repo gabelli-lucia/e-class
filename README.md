@@ -36,6 +36,7 @@ Senza l'opzione, gli output vengono salvati nella directory corrente.
 
 Usare `--use=q` per valutare la significatività nel grafico "What do YOU think" con i q-value
 corretti. `--use=p` seleziona i p-value, utilizzati per default.
+Con `--use=cliff`, il grafico usa il delta di Cliff e azzera i valori superiori a `conf.CLIFF_THRESHOLD`.
 
 # Compilare in un eseguibile
 

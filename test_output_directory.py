@@ -20,18 +20,18 @@ class OutputDirectoryTests(unittest.TestCase):
                 do.save_outputs(None, None, None, None, directory)
             for name, filename in zip(names, files):
                 self.assertEqual(mocks[name].call_args.args[-1], os.path.join(directory, filename))
-            self.assertFalse(mocks['chart_what_do_you_think'].call_args.kwargs['use_q'])
+            self.assertEqual(mocks['chart_what_do_you_think'].call_args.kwargs['use'], 'p')
 
-    def test_use_q_is_forwarded_to_chart(self):
+    def test_use_is_forwarded_to_chart(self):
         names = ['dump_success', 'dump_averages', 'chart_means',
                  'chart_what_do_you_think', 'chart_before_after']
         with patch.multiple(do, **{name: unittest.mock.DEFAULT for name in names}) as mocks:
-            do.save_outputs(None, None, None, None, '.', use_q=True)
-        self.assertTrue(mocks['chart_what_do_you_think'].call_args.kwargs['use_q'])
+            do.save_outputs(None, None, None, None, '.', use='cliff')
+        self.assertEqual(mocks['chart_what_do_you_think'].call_args.kwargs['use'], 'cliff')
 
     def test_use_argument_choices(self):
         script = Path(do.__file__).resolve()
-        for option in ([], ['--use=p'], ['--use=q']):
+        for option in ([], ['--use=p'], ['--use=q'], ['--use=cliff']):
             with self.subTest(option=option), tempfile.TemporaryDirectory() as directory:
                 missing = str(Path(directory) / 'missing_PRE_x.csv')
                 result = subprocess.run([sys.executable, str(script), *option, missing],

@@ -19,6 +19,7 @@ MAPPING2 = [0, 0, 0, 1, 1]
 MAPPING3 = [-1, -1, 0, 1, 1]
 # Threshold of the effect size.
 PVALUE_THRESHOLD = 0.05
+CLIFF_THRESHOLD = 0.147
 
 # Substrings of the tile of columns that are about yourself
 COL_TU = " TU "
