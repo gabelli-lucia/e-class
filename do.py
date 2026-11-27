@@ -368,7 +368,7 @@ def calculate_qvalues(pvalues):
     return qvalues
 
 
-def save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir):
+def save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir, use_q=False):
     log.info("Saving CSV files")
     dump_success(second_data3, os.path.join(output_dir, 'out-success.csv'))
     dump_averages(first_data3, second_data3, os.path.join(output_dir, 'out-medie.csv'))
@@ -376,11 +376,11 @@ def save_outputs(first_data2, first_data3, second_data2, second_data3, output_di
     log.info("Saving charts")
     chart_means(first_data2, second_data2, os.path.join(output_dir, 'out-chart-means.png'))
     chart_what_do_you_think(first_data3, second_data3, conf.COL_TU,
-                            os.path.join(output_dir, 'out-chart-what-do-you-think.png'))
+                            os.path.join(output_dir, 'out-chart-what-do-you-think.png'), use_q=use_q)
     chart_before_after(first_data2, second_data2, os.path.join(output_dir, 'out-chart-after-before.png'))
 
 
-def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, filename):
+def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, filename, use_q=False):
     """Creates a chart showing first/second comparison with statistical significance indicators.
 
     This function creates a visualization that shows first and second means for columns containing
@@ -394,6 +394,7 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
         second_data_mapped3 (pandas.DataFrame): Mapped second set of data
         substring (str): Substring to filter columns (e.g., 'TU' for student columns)
         filename (str): Path where the chart image will be saved
+        use_q (bool): Use FDR-corrected q-values for significance instead of p-values
 
     Returns:
         None
@@ -436,11 +437,10 @@ def chart_what_do_you_think(first_data_mapped3, second_data_mapped3, substring, 
     log.debug(f"Number of differences: {differences}")
     columns_with_effect = []
 
-    # Bisogna azzerare effect per le colonne che hanno qvalue > conf.PVALUE_THRESHOLD
+    # Bisogna azzerare effect per le colonne non significative
     for col_name in columns:
-        q_val = qvalue[col_name]
-        p_val = pvalue[col_name]
-        if isnan(p_val) or p_val > conf.PVALUE_THRESHOLD:
+        value = qvalue[col_name] if use_q else pvalue[col_name]
+        if isnan(value) or value > conf.PVALUE_THRESHOLD:
             effect[col_name] = 0.0
             cliff[col_name] = 0.0
         else:
@@ -863,6 +863,8 @@ if __name__ == "__main__":
                         help='Only if lang=en, the substring that is contained in all EXPERT columns (default: physicists).')
     parser.add_argument('--output-in-input-dir', action='store_true',
                         help='Save output alongside the input files (which must share a directory).')
+    parser.add_argument('--use-q', action='store_true',
+                        help='Use FDR-corrected q-values for chart significance instead of p-values.')
 
     # Parse arguments
     args = parser.parse_args()
@@ -950,6 +952,6 @@ if __name__ == "__main__":
     # second_data2.to_excel(f"{second_type.name.lower()}2.xlsx")
     # second_data3.to_excel(f"{second_type.name.lower()}3.xlsx")
 
-    save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir)
+    save_outputs(first_data2, first_data3, second_data2, second_data3, output_dir, use_q=args.use_q)
 
     log.info("Done.")

@@ -55,15 +55,17 @@ class QValueTests(unittest.TestCase):
         self.assertTrue(math.isnan(values[2]))
         self.assertEqual(values[3], 1.0)
 
-    def test_chart_uses_corrected_significance(self):
-        results = [SimpleNamespace(pvalue=p, zstatistic=1, statistic=1) for p in (0.01, 0.04, float('nan'))]
-        with tempfile.TemporaryDirectory() as directory, \
-                patch.object(do, 'wilcoxon', side_effect=results), \
-                patch.object(do, 'cliffs_delta', return_value=(0.5, 'medium')):
-            do.chart_what_do_you_think(self.first, self.second, 'TU', Path(directory) / 'chart.png')
-            stars = plt.gcf().axes[0].lines[2].get_ydata()
-            self.assertEqual(np.ma.count(stars), 1)
-        plt.close('all')
+    def test_chart_significance_selection(self):
+        for use_q, expected_stars in ((False, 2), (True, 1)):
+            with self.subTest(use_q=use_q), tempfile.TemporaryDirectory() as directory, \
+                    patch.object(do, 'wilcoxon', side_effect=[
+                        SimpleNamespace(pvalue=p, zstatistic=1, statistic=1)
+                        for p in (0.01, 0.04, float('nan'))]), \
+                    patch.object(do, 'cliffs_delta', return_value=(0.5, 'medium')):
+                do.chart_what_do_you_think(self.first, self.second, 'TU', Path(directory) / 'chart.png', use_q=use_q)
+                stars = plt.gcf().axes[0].lines[2].get_ydata()
+                self.assertEqual(np.ma.count(stars), expected_stars)
+            plt.close('all')
 
 
 if __name__ == '__main__':

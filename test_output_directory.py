@@ -20,6 +20,14 @@ class OutputDirectoryTests(unittest.TestCase):
                 do.save_outputs(None, None, None, None, directory)
             for name, filename in zip(names, files):
                 self.assertEqual(mocks[name].call_args.args[-1], os.path.join(directory, filename))
+            self.assertFalse(mocks['chart_what_do_you_think'].call_args.kwargs['use_q'])
+
+    def test_use_q_is_forwarded_to_chart(self):
+        names = ['dump_success', 'dump_averages', 'chart_means',
+                 'chart_what_do_you_think', 'chart_before_after']
+        with patch.multiple(do, **{name: unittest.mock.DEFAULT for name in names}) as mocks:
+            do.save_outputs(None, None, None, None, '.', use_q=True)
+        self.assertTrue(mocks['chart_what_do_you_think'].call_args.kwargs['use_q'])
 
     def test_different_input_directories_are_rejected(self):
         script = Path(do.__file__).resolve()
